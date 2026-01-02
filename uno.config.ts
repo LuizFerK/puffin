@@ -12,8 +12,8 @@ export default defineConfig({
   theme: {
     colors: {
       'bg-app': 'var(--bg)',
+      'fg-app': 'var(--fg)',
       'text-app': 'var(--text)',
-      'btn-bg': 'var(--btn-bg)',
       'btn-hover': 'var(--btn-hover)',
     }
   }

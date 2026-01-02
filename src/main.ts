@@ -4,6 +4,7 @@ import router from './router'
 import 'virtual:uno.css'
 import './App.css'
 
+
 createApp(App)
   .use(router)
   .mount('#root')

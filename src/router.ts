@@ -5,8 +5,8 @@ import Page3 from './pages/Page3.vue'
 
 const routes = [
   { path: '/', component: Page1 },
-  { path: '/page2', component: Page2 },
-  { path: '/page3', component: Page3 },
+  { path: '/databases', component: Page2 },
+  { path: '/queries', component: Page3 },
 ]
 
 const router = createRouter({
