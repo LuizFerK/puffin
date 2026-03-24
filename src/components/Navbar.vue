@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
+import { version } from '../../package.json'
 import Button from './Button.vue'
 
 const route = useRoute()
@@ -19,11 +20,14 @@ function navigate(path: string) {
 <template>
   <aside w-56 bg-gray-950 border-r border-gray-800 flex flex-col flex-shrink-0>
     <!-- Logo area -->
-    <div px-4 py-5 flex items-center gap-3 mb-6 border-b border-gray-800>
-      <div w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue="500/20">
-        <span text-white font-bold text-lg>P</span>
+    <div px-6 py-5 flex items-center justify-between mb-6 border-b border-gray-800>
+      <div flex items-center gap-2>
+        <div w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue="500/20">
+          <span text-white font-bold text-lg italic mb-0.5>P</span>
+        </div>
+        <span text-white font-semibold italic text-xl>Puffin</span>
       </div>
-      <span text-white>Puffin</span>
+      <span px-1 pt-0.5 rounded bg-gray-800 text="[10px]" text-gray-400 border border-gray-700>v{{ version }}</span>
     </div>
 
     <!-- Navigation Middle -->
