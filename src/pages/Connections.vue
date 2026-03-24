@@ -73,7 +73,7 @@ function cancelForm() {
 </script>
 
 <template>
-  <div w="50%" m-auto mt-8 flex flex-col>
+  <div max-w="50%" m-auto mt-8 flex flex-col>
     <!-- Header -->
     <header mb-4 flex justify-between items-center gap-4>
       <div>

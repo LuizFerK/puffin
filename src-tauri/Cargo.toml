@@ -26,4 +26,8 @@ serde_json = "1"
 aes-gcm = "0.10"
 base64 = "0.22"
 rand = "0.8"
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1", "with-chrono-0_4", "with-uuid-1"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = "1"
 

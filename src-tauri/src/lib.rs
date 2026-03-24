@@ -4,6 +4,10 @@ use aes_gcm::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
+use std::time::Instant;
+use tokio_postgres::{types::Type, NoTls};
+use uuid::Uuid;
 
 // App-specific 32-byte key (AES-256). Machine-bound, not user-facing.
 const APP_KEY: &[u8; 32] = b"puffin-db-manager-enc-key-v1!!!!";
@@ -48,12 +52,165 @@ fn decrypt_password(encrypted: String) -> Result<String, String> {
     String::from_utf8(plaintext).map_err(|e| format!("UTF-8 decode failed: {}", e))
 }
 
+#[derive(Deserialize)]
+struct ConnectionParams {
+    host: String,
+    port: u16,
+    database: String,
+    username: String,
+    password: Option<String>,
+}
+
+#[derive(Serialize)]
+struct QueryResult {
+    columns: Vec<String>,
+    rows: Vec<Vec<serde_json::Value>>,
+    row_count: usize,
+    elapsed_ms: u128,
+}
+
+fn pg_value_to_json(
+    row: &tokio_postgres::Row,
+    idx: usize,
+    col_type: &Type,
+) -> serde_json::Value {
+    // Try to extract the value based on the column type
+    macro_rules! try_type {
+        ($rust_type:ty) => {
+            if let Ok(val) = row.try_get::<_, Option<$rust_type>>(idx) {
+                return match val {
+                    Some(v) => serde_json::to_value(v).unwrap_or(serde_json::Value::Null),
+                    None => serde_json::Value::Null,
+                };
+            }
+        };
+    }
+
+    match *col_type {
+        Type::BOOL => try_type!(bool),
+        Type::INT2 => try_type!(i16),
+        Type::INT4 => try_type!(i32),
+        Type::INT8 => try_type!(i64),
+        Type::FLOAT4 => try_type!(f32),
+        Type::FLOAT8 => try_type!(f64),
+        Type::TEXT | Type::VARCHAR | Type::NAME | Type::BPCHAR => try_type!(String),
+        Type::TIMESTAMP => {
+            if let Ok(val) = row.try_get::<_, Option<chrono::NaiveDateTime>>(idx) {
+                return match val {
+                    Some(v) => serde_json::Value::String(v.format("%Y-%m-%d %H:%M:%S").to_string()),
+                    None => serde_json::Value::Null,
+                };
+            }
+        }
+        Type::TIMESTAMPTZ => {
+            if let Ok(val) =
+                row.try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(idx)
+            {
+                return match val {
+                    Some(v) => serde_json::Value::String(v.format("%Y-%m-%d %H:%M:%S %Z").to_string()),
+                    None => serde_json::Value::Null,
+                };
+            }
+        }
+        Type::DATE => {
+            if let Ok(val) = row.try_get::<_, Option<chrono::NaiveDate>>(idx) {
+                return match val {
+                    Some(v) => serde_json::Value::String(v.to_string()),
+                    None => serde_json::Value::Null,
+                };
+            }
+        }
+        Type::JSON | Type::JSONB => try_type!(serde_json::Value),
+        Type::UUID => {
+            if let Ok(val) = row.try_get::<_, Option<Uuid>>(idx) {
+                return match val {
+                    Some(v) => serde_json::Value::String(v.to_string()),
+                    None => serde_json::Value::Null,
+                };
+            }
+        }
+        Type::OID => try_type!(u32),
+        _ => {}
+    }
+
+    // Fallback: try as string
+    if let Ok(val) = row.try_get::<_, Option<String>>(idx) {
+        return match val {
+            Some(v) => serde_json::Value::String(v),
+            None => serde_json::Value::Null,
+        };
+    }
+
+    serde_json::Value::String(format!("<unsupported: {}>", col_type.name()))
+}
+
+#[tauri::command]
+async fn execute_query(connection: ConnectionParams, sql: String) -> Result<QueryResult, String> {
+    let password = connection.password.unwrap_or_default();
+
+    let conn_string = format!(
+        "host={} port={} dbname={} user={} password={}",
+        connection.host, connection.port, connection.database, connection.username, password
+    );
+
+    let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
+        .await
+        .map_err(|e| format!("Connection failed: {}", e))?;
+
+    // Spawn the connection handler
+    tokio::spawn(async move {
+        if let Err(e) = conn.await {
+            eprintln!("Connection error: {}", e);
+        }
+    });
+
+    let start = Instant::now();
+
+    let rows = client
+        .query(&sql as &str, &[])
+        .await
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let elapsed_ms = start.elapsed().as_millis();
+
+    let columns: Vec<String> = if let Some(first) = rows.first() {
+        first.columns().iter().map(|c| c.name().to_string()).collect()
+    } else {
+        Vec::new()
+    };
+
+    let json_rows: Vec<Vec<serde_json::Value>> = rows
+        .iter()
+        .take(500)
+        .map(|row| {
+            row.columns()
+                .iter()
+                .enumerate()
+                .map(|(i, col)| pg_value_to_json(row, i, col.type_()))
+                .collect()
+        })
+        .collect();
+
+    let row_count = json_rows.len();
+
+    Ok(QueryResult {
+        columns,
+        rows: json_rows,
+        row_count,
+        elapsed_ms,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![encrypt_password, decrypt_password])
+        .invoke_handler(tauri::generate_handler![
+            encrypt_password,
+            decrypt_password,
+            execute_query
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
