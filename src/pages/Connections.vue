@@ -1,56 +1,44 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import Button from '../components/Button.vue'
+import Modal from '../components/Modal.vue'
+import { useConnectionStore } from '../stores/connectionStore'
+import type { Connection } from '../stores/types'
 
-interface Connection {
-  id: string
-  name: string
-  group?: string
-  host: string
-  port: number | ''
-  database: string
-  username: string
-  password?: string
-  color?: string
+const {
+  connections,
+  activeConnectionId,
+  groupedConnections,
+  loadConnections,
+  addConnection,
+  removeConnection,
+  setActiveConnection,
+} = useConnectionStore()
+
+// Delete confirmation
+const connectionToDelete = ref<Connection | null>(null)
+const isDeleteModalOpen = ref(false)
+
+function openDeleteModal(conn: Connection) {
+  connectionToDelete.value = conn
+  isDeleteModalOpen.value = true
 }
 
-// Mock Data
-const connections = ref<Connection[]>([
-  { id: '1', name: 'Production DB', group: 'PRODUCTION', host: 'db.production.example.com', port: 5432, database: 'app_production', username: 'admin', color: 'emerald' },
-  { id: '2', name: 'Staging DB', group: 'DEVELOPMENT', host: 'db.staging.example.com', port: 5432, database: 'app_staging', username: 'staging_user', color: 'yellow' },
-  { id: '3', name: 'Dev DB', group: 'DEVELOPMENT', host: 'localhost', port: 5432, database: 'app_dev', username: 'postgres', color: 'blue' },
-  { id: '4', name: 'Analytics DB', host: 'analytics.example.com', port: 5432, database: 'analytics', username: 'admin', color: 'purple' }
-])
+async function confirmDelete() {
+  if (connectionToDelete.value) {
+    await removeConnection(connectionToDelete.value.id)
+  }
+  isDeleteModalOpen.value = false
+  connectionToDelete.value = null
+}
 
-// Grouping Logic
-const groupedConnections = computed(() => {
-  const groups: Record<string, Connection[]> = {}
-  
-  connections.value.forEach(conn => {
-    const groupName = conn.group && conn.group.trim() !== '' ? conn.group : 'Ungrouped'
-    if (!groups[groupName]) {
-      groups[groupName] = []
-    }
-    groups[groupName].push(conn)
-  })
+const COLORS = ['#4ade80', '#facc15', '#38bdf8', '#f87171', '#c084fc', '#fb923c']
 
-  // Sort groups so 'Ungrouped' appears last or first depending on preference
-  const sortedKeys = Object.keys(groups).sort((a, b) => {
-    if (a === 'Ungrouped') return 1
-    if (b === 'Ungrouped') return -1
-    return a.localeCompare(b)
-  })
+function getColor(index: number) {
+  return COLORS[index % COLORS.length]
+}
 
-  const sortedGroups: Record<string, Connection[]> = {}
-  sortedKeys.forEach(k => {
-    sortedGroups[k] = groups[k]
-  })
-
-  return sortedGroups
-})
-
-// Active Connection state
-const activeConnectionId = ref<string | null>('2')
+onMounted(() => loadConnections())
 
 // Form Logic
 const isFormVisible = ref(false)
@@ -67,19 +55,13 @@ const emptyFormState = (): Omit<Connection, 'id'> => ({
 
 const formData = ref({ ...emptyFormState() })
 
-function submitForm() {
+async function submitForm() {
   if (!formData.value.name || !formData.value.host || formData.value.port === '') {
     alert("Please fill in at least the Name, Host, and Port.")
     return
   }
   
-  connections.value.push({
-    id: Date.now().toString(),
-    ...formData.value,
-    port: Number(formData.value.port)
-  })
-  
-  // reset form
+  await addConnection(formData.value)
   formData.value = { ...emptyFormState() }
   isFormVisible.value = false
 }
@@ -168,10 +150,10 @@ function cancelForm() {
     <!-- Connection List -->
     <div flex-1 overflow-y-auto pr-2 flex flex-col>
       
-      <div v-if="connections.length === 0 && !isFormVisible" flex items-center justify-center flex-col gap-4 mt-12>
-        <div i-lucide-database text-6xl text-gray-800></div>
-        <p text-xl text-gray-500>No active connections</p>
-        <Button @click="isFormVisible = true" variant="primary" mt-2 text-sm>Create your first connection</Button>
+      <div v-if="connections.length === 0 && !isFormVisible" flex items-center justify-center flex-col mt-20>
+        <div i-lucide-server text-3xl text-gray-800 mb-4></div>
+        <p text-gray-500>No connections configured</p>
+        <p text-gray-500 text-xs>Click "New Connection" to add one</p>
       </div>
 
       <div v-for="(conns, groupName) in groupedConnections" :key="groupName" flex flex-col gap-3>
@@ -186,22 +168,16 @@ function cancelForm() {
         <!-- Group Cards -->
         <div flex flex-col gap-3 :class="{'border-l border-gray-800/80': groupName !== 'Ungrouped'}">
           <div v-for="conn in conns" :key="conn.id" 
-            p-4 py-2 rounded-xl border transition-all cursor-pointer flex items-center gap-4 group
-            @click="activeConnectionId = conn.id"
+            class="group"
+            p-4 py-2 rounded-xl border transition-all cursor-pointer flex items-center gap-4
+            @click="setActiveConnection(conn.id)"
             :class="{
               'ml-4': groupName !== 'Ungrouped',
               'bg-emerald-500/5 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]': activeConnectionId === conn.id,
               'bg-transparent border-gray-800/60 hover:bg-gray-800/30 hover:border-gray-700': activeConnectionId !== conn.id
             }">
-            
-            <div w-10 h-10 rounded-lg flex items-center justify-center 
-                 :class="[
-                   conn.color === 'emerald' ? 'bg-emerald-500/10 text-emerald-500' : '',
-                   conn.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-500' : '',
-                   conn.color === 'blue' ? 'bg-blue-500/10 text-blue-500' : '',
-                   conn.color === 'purple' ? 'bg-purple-500/10 text-purple-500' : '',
-                   !conn.color ? 'bg-gray-500/10 text-gray-400' : ''
-                 ]">
+            <div w-10 h-10 rounded-lg flex items-center justify-center
+                 :style="{ color: getColor(connections.indexOf(conn)), backgroundColor: getColor(connections.indexOf(conn)) + '1a' }">
               <div i-lucide-server></div>
             </div>
             
@@ -209,16 +185,38 @@ function cancelForm() {
               <span font-medium text-gray-200 text-base>{{ conn.name }}</span>
               <span text-sm text-gray-500 font-mono mt-0.5>{{ conn.host }}:{{ conn.port }}/{{ conn.database }}</span>
             </div>
-            
-            <div flex items-center gap-3 px-2 transition-colors
-                 :class="activeConnectionId === conn.id ? 'text-emerald-500' : 'text-emerald-600/60 group-hover:text-emerald-500/80'">
-               <div v-if="conn.name.includes('Production') || conn.name.includes('Analytics')" i-lucide-shield text-sm></div>
-               <div i-lucide-plug text-sm></div>
+
+            <div flex items-center gap-3 mr-2>
+              <div opacity-0 group-hover:opacity-100 transition-opacity>
+                <Button
+                  icon="i-lucide-trash"
+                  variant="secondary"
+                  class="hover:!text-red-400 hover:!bg-red-500/10 px-2!"
+                  @click.stop="openDeleteModal(conn)"
+                />
+              </div>
+              <div transition-colors
+                    :class="activeConnectionId === conn.id ? 'text-emerald-500' : 'text-emerald-600/60 group-hover:text-emerald-500/80'">
+                <div i-lucide-plug text-sm></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
       
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <Modal :open="isDeleteModalOpen" title="Delete Connection" @close="isDeleteModalOpen = false">
+      <p text-sm text-gray-400>
+        Are you sure you want to delete
+        <span font-semibold text-gray-200>{{ connectionToDelete?.name }}</span>?
+        This action cannot be undone.
+      </p>
+      <template #footer>
+        <Button variant="secondary" @click="isDeleteModalOpen = false">Cancel</Button>
+        <Button variant="primary" class="!bg-red-500/10 !text-red-400 hover:!bg-red-500/20" @click="confirmDelete">Delete</Button>
+      </template>
+    </Modal>
   </div>
 </template>

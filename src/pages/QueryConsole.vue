@@ -1,10 +1,41 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import SqlHighlighter from '../components/SqlHighlighter.vue'
 import Button from '../components/Button.vue'
+import Modal from '../components/Modal.vue'
+import { useQueryStore } from '../stores/queryStore'
+import { useConnectionStore } from '../stores/connectionStore'
+
+const { consoleState, loadQueries, addQuery, updateConsoleState } = useQueryStore()
+const { activeConnection, loadConnections } = useConnectionStore()
+
+onMounted(async () => {
+  await loadConnections()
+  await loadQueries()
+  // Hydrate local refs from persisted console state
+  queryText.value = consoleState.value.queryText || 'SELECT * FROM users\nORDER BY created_at DESC\nLIMIT 25;'
+  editorHeight.value = consoleState.value.editorHeight || 300
+})
 
 const editorHeight = ref(300)
 const isDragging = ref(false)
+const queryText = ref('')
+
+// Debounced persist of console state
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+function debouncedSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    updateConsoleState({
+      queryText: queryText.value,
+      editorHeight: editorHeight.value,
+    })
+  }, 500)
+}
+
+watch(queryText, debouncedSave)
+watch(editorHeight, debouncedSave)
 
 const startDrag = () => {
   isDragging.value = true
@@ -16,7 +47,7 @@ const startDrag = () => {
 
 const onDrag = (e: MouseEvent) => {
   if (!isDragging.value) return
-  const newHeight = e.clientY - 48 // 48 is roughly the height of the top bar
+  const newHeight = e.clientY - 48
   if (newHeight > 100 && newHeight < window.innerHeight - 150) {
     editorHeight.value = newHeight
   }
@@ -30,7 +61,21 @@ const stopDrag = () => {
   document.body.style.cursor = ''
 }
 
-const queryText = ref(`SELECT * FROM users\nORDER BY created_at DESC\nLIMIT 25;`)
+// Save to collection
+const isSaveDialogOpen = ref(false)
+const saveName = ref('')
+
+async function saveToCollection() {
+  if (!saveName.value.trim()) return
+  await addQuery({
+    name: saveName.value.trim(),
+    connectionName: activeConnection.value?.name ?? 'No connection',
+    date: new Date().toISOString().split('T')[0],
+    code: queryText.value,
+  })
+  saveName.value = ''
+  isSaveDialogOpen.value = false
+}
 
 const lineNumbersArea = ref<HTMLElement | null>(null)
 const highlighterArea = ref<HTMLElement | null>(null)
@@ -68,10 +113,28 @@ const lines = ref(Array.from({ length: 50 }, (_, i) => i + 1))
         <span text-xs text-gray-600>Ctrl + Enter</span>
       </div>
       <div flex items-center text-gray-400>
-        <Button icon="i-lucide-save" variant="secondary" />
-        <Button icon="i-lucide-trash-2" variant="secondary" class="hover:!text-red-400 hover:!bg-red-500/10" />
+        <Button icon="i-lucide-save" variant="secondary" @click="isSaveDialogOpen = !isSaveDialogOpen" />
       </div>
     </div>
+
+    <!-- Save Dialog -->
+    <Modal :open="isSaveDialogOpen" title="Save to Collection" @close="isSaveDialogOpen = false">
+      <div flex flex-col gap-3>
+        <label text-sm text-gray-400 font-medium>Query Name</label>
+        <input
+          v-model="saveName"
+          type="text"
+          placeholder="e.g. All users"
+          bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200
+          focus:outline-none focus:border-blue-500 transition
+          @keyup.enter="saveToCollection"
+        />
+      </div>
+      <template #footer>
+        <Button variant="secondary" @click="isSaveDialogOpen = false">Cancel</Button>
+        <Button variant="primary" @click="saveToCollection">Save</Button>
+      </template>
+    </Modal>
 
     <!-- Editor Wrapper -->
     <div flex :style="{ height: editorHeight + 'px' }" shrink-0 bg="[#0d1117]" overflow-hidden>
@@ -153,8 +216,14 @@ const lines = ref(Array.from({ length: 50 }, (_, i) => i + 1))
     <!-- Status bar -->
     <div h-8 mt-auto border-t border-gray-800 flex items-center justify-between px-4 text-xs text-gray-500 shrink-0>
       <div flex items-center gap-2>
-        <div w-1.5 h-1.5 rounded-full bg-emerald-500></div>
-        Connected to Staging DB
+        <template v-if="activeConnection">
+          <div w-1.5 h-1.5 rounded-full bg-emerald-500></div>
+          Connected to {{ activeConnection.name }}
+        </template>
+        <template v-else>
+          <div w-1.5 h-1.5 rounded-full bg-gray-600></div>
+          No active connection
+        </template>
       </div>
       <div>PostgreSQL</div>
     </div>
@@ -163,7 +232,6 @@ const lines = ref(Array.from({ length: 50 }, (_, i) => i + 1))
 </template>
 
 <style scoped>
-/* Scoped css to override default browser scrollbars potentially, optional */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

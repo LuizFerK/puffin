@@ -5,7 +5,9 @@ import Navbar from './components/Navbar.vue'
 <template>
   <div flex h-screen bg-gray-950>
     <Navbar />
-    <RouterView />
+    <div w-full bg-gray="900/20">
+      <RouterView />
+    </div>
   </div>
 </template>
 
