@@ -1,31 +1,133 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps<{
-  sql: string
-  class?: string
-}>()
+  sql: string;
+  class?: string;
+}>();
 
 const KEYWORDS = new Set([
-  'select','from','where','and','or','not','in','is','null','as','on','join',
-  'left','right','inner','outer','cross','full','insert','into','values','update',
-  'set','delete','create','drop','alter','table','index','view','grant','revoke',
-  'begin','commit','rollback','having','group','by','order','asc','desc','limit',
-  'offset','distinct','union','all','exists','between','like','ilike','case','when',
-  'then','else','end','cast','with','recursive','returning','true','false','primary',
-  'key','references','foreign','constraint','default','unique','check','cascade',
+  "select",
+  "from",
+  "where",
+  "and",
+  "or",
+  "not",
+  "in",
+  "is",
+  "null",
+  "as",
+  "on",
+  "join",
+  "left",
+  "right",
+  "inner",
+  "outer",
+  "cross",
+  "full",
+  "insert",
+  "into",
+  "values",
+  "update",
+  "set",
+  "delete",
+  "create",
+  "drop",
+  "alter",
+  "table",
+  "index",
+  "view",
+  "grant",
+  "revoke",
+  "begin",
+  "commit",
+  "rollback",
+  "having",
+  "group",
+  "by",
+  "order",
+  "asc",
+  "desc",
+  "limit",
+  "offset",
+  "distinct",
+  "union",
+  "all",
+  "exists",
+  "between",
+  "like",
+  "ilike",
+  "case",
+  "when",
+  "then",
+  "else",
+  "end",
+  "cast",
+  "with",
+  "recursive",
+  "returning",
+  "true",
+  "false",
+  "primary",
+  "key",
+  "references",
+  "foreign",
+  "constraint",
+  "default",
+  "unique",
+  "check",
+  "cascade",
 ]);
 
 const FUNCTIONS = new Set([
-  'count','sum','avg','min','max','coalesce','nullif','now','current_timestamp',
-  'lower','upper','trim','length','substring','replace','concat','array_agg',
-  'json_agg','jsonb_agg','row_number','rank','dense_rank','gen_random_uuid',
+  "count",
+  "sum",
+  "avg",
+  "min",
+  "max",
+  "coalesce",
+  "nullif",
+  "now",
+  "current_timestamp",
+  "lower",
+  "upper",
+  "trim",
+  "length",
+  "substring",
+  "replace",
+  "concat",
+  "array_agg",
+  "json_agg",
+  "jsonb_agg",
+  "row_number",
+  "rank",
+  "dense_rank",
+  "gen_random_uuid",
 ]);
 
 const TYPES = new Set([
-  'int','integer','bigint','smallint','serial','bigserial','text','varchar',
-  'char','boolean','bool','date','timestamp','timestamptz','uuid','json',
-  'jsonb','numeric','decimal','real','float','double',
+  "int",
+  "integer",
+  "bigint",
+  "smallint",
+  "serial",
+  "bigserial",
+  "text",
+  "varchar",
+  "char",
+  "boolean",
+  "bool",
+  "date",
+  "timestamp",
+  "timestamptz",
+  "uuid",
+  "json",
+  "jsonb",
+  "numeric",
+  "decimal",
+  "real",
+  "float",
+  "double",
 ]);
 
 function tokenize(sql: string) {
@@ -36,23 +138,23 @@ function tokenize(sql: string) {
     if (/\s/.test(sql[i])) {
       let start = i;
       while (i < sql.length && /\s/.test(sql[i])) i++;
-      tokens.push({ type: 'ws', value: sql.slice(start, i) });
+      tokens.push({ type: "ws", value: sql.slice(start, i) });
       continue;
     }
 
-    if (sql[i] === '-' && sql[i + 1] === '-') {
+    if (sql[i] === "-" && sql[i + 1] === "-") {
       let start = i;
-      while (i < sql.length && sql[i] !== '\n') i++;
-      tokens.push({ type: 'comment', value: sql.slice(start, i) });
+      while (i < sql.length && sql[i] !== "\n") i++;
+      tokens.push({ type: "comment", value: sql.slice(start, i) });
       continue;
     }
 
-    if (sql[i] === '/' && sql[i + 1] === '*') {
+    if (sql[i] === "/" && sql[i + 1] === "*") {
       let start = i;
       i += 2;
-      while (i < sql.length - 1 && !(sql[i] === '*' && sql[i + 1] === '/')) i++;
+      while (i < sql.length - 1 && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
       i += 2;
-      tokens.push({ type: 'comment', value: sql.slice(start, i) });
+      tokens.push({ type: "comment", value: sql.slice(start, i) });
       continue;
     }
 
@@ -61,7 +163,7 @@ function tokenize(sql: string) {
       i++;
       while (i < sql.length && sql[i] !== "'") i++;
       if (i < sql.length) i++;
-      tokens.push({ type: 'string', value: sql.slice(start, i) });
+      tokens.push({ type: "string", value: sql.slice(start, i) });
       continue;
     }
 
@@ -70,14 +172,14 @@ function tokenize(sql: string) {
       i++;
       while (i < sql.length && sql[i] !== '"') i++;
       if (i < sql.length) i++;
-      tokens.push({ type: 'string', value: sql.slice(start, i) });
+      tokens.push({ type: "string", value: sql.slice(start, i) });
       continue;
     }
 
     if (/\d/.test(sql[i])) {
       let start = i;
       while (i < sql.length && /[\d.]/.test(sql[i])) i++;
-      tokens.push({ type: 'number', value: sql.slice(start, i) });
+      tokens.push({ type: "number", value: sql.slice(start, i) });
       continue;
     }
 
@@ -86,14 +188,15 @@ function tokenize(sql: string) {
       while (i < sql.length && /[a-zA-Z0-9_]/.test(sql[i])) i++;
       const word = sql.slice(start, i);
       const lower = word.toLowerCase();
-      if (KEYWORDS.has(lower)) tokens.push({ type: 'keyword', value: word });
-      else if (FUNCTIONS.has(lower)) tokens.push({ type: 'function', value: word });
-      else if (TYPES.has(lower)) tokens.push({ type: 'type', value: word });
-      else tokens.push({ type: 'ident', value: word });
+      if (KEYWORDS.has(lower)) tokens.push({ type: "keyword", value: word });
+      else if (FUNCTIONS.has(lower))
+        tokens.push({ type: "function", value: word });
+      else if (TYPES.has(lower)) tokens.push({ type: "type", value: word });
+      else tokens.push({ type: "ident", value: word });
       continue;
     }
 
-    tokens.push({ type: 'punct', value: sql[i] });
+    tokens.push({ type: "punct", value: sql[i] });
     i++;
   }
 
@@ -101,27 +204,30 @@ function tokenize(sql: string) {
 }
 
 const colorMap: Record<string, string> = {
-  keyword: '#34d399', 
-  function: '#60a5fa', 
-  string: '#6ee7b7', 
-  number: '#eab308', 
-  comment: '#9ca3af', 
-  type: '#c084fc', 
-  punct: '#9ca3af', 
-  ident: '#d1d5db',
-  ws: 'transparent'
+  keyword: "#34d399",
+  function: "#60a5fa",
+  string: "#6ee7b7",
+  number: "#eab308",
+  comment: "#9ca3af",
+  type: "#c084fc",
+  punct: "#9ca3af",
+  ident: "#d1d5db",
+  ws: "transparent",
 };
 
-const highlightedTokens = computed(() => tokenize(props.sql || ''))
+const highlightedTokens = computed(() => tokenize(props.sql || ""));
 
 function getTokenStyle(type: string) {
   const color = colorMap[type] || colorMap.ident;
-  if (type === 'comment') return { color, fontStyle: 'italic' };
-  if (type === 'keyword') return { color, fontWeight: 600 };
+  if (type === "comment") return { color, fontStyle: "italic" };
+  if (type === "keyword") return { color, fontWeight: 600 };
   return { color };
 }
 </script>
 
 <template>
-  <pre :class="props.class" style="margin: 0;"><template v-for="(tok, i) in highlightedTokens" :key="i"><span :style="getTokenStyle(tok.type)">{{ tok.value }}</span></template></pre>
+  <pre
+    :class="props.class"
+    style="margin: 0"
+  ><template v-for="tok in highlightedTokens" :key="tok.value + Math.random()"><span :style="getTokenStyle(tok.type)">{{ tok.value }}</span></template></pre>
 </template>
