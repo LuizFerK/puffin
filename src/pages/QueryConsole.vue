@@ -14,7 +14,7 @@ onMounted(async () => {
   await loadConnections()
   await loadQueries()
   queryText.value = consoleState.value.queryText || ''
-  editorHeight.value = consoleState.value.editorHeight || Math.round((window.innerHeight - 60) / 2)
+  editorHeight.value = Math.round((window.innerHeight - 60) / 2)
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('resize', onResize)
 })
@@ -91,8 +91,7 @@ function debouncedSave() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     updateConsoleState({
-      queryText: queryText.value,
-      editorHeight: editorHeight.value,
+      queryText: queryText.value
     })
   }, 500)
 }
@@ -154,7 +153,7 @@ const handleScroll = (e: Event) => {
   }
 }
 
-const lines = ref(Array.from({ length: 50 }, (_, i) => i + 1))
+const lines = ref(Array.from({ length: 150 }, (_, i) => i + 1))
 
 // Copy cell to clipboard
 const copyTooltip = ref({ visible: false, x: 0, y: 0 })
@@ -182,7 +181,7 @@ function copyCell(e: MouseEvent, value: unknown) {
         <span text-xs text-gray-600>Ctrl + Enter</span>
       </div>
       <div flex items-center text-gray-400>
-        <Button icon="i-lucide-save" variant="secondary" @click="isSaveDialogOpen = !isSaveDialogOpen" />
+        <Button icon="i-lucide-bookmark" variant="secondary" @click="isSaveDialogOpen = !isSaveDialogOpen" />
       </div>
     </div>
 
@@ -194,8 +193,8 @@ function copyCell(e: MouseEvent, value: unknown) {
           v-model="saveName"
           type="text"
           placeholder="e.g. All users"
-          bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200
-          focus:outline-none focus:border-blue-500 transition
+          bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200
+          focus:outline-none focus:border-emerald-700 transition
           @keyup.enter="saveToCollection"
         />
       </div>
@@ -329,8 +328,8 @@ function copyCell(e: MouseEvent, value: unknown) {
     <div h-8 mt-auto border-t border-gray-800 flex items-center justify-between px-4 text-xs text-gray-500 shrink-0>
       <div flex items-center gap-2>
         <template v-if="activeConnection">
-          <div w-1.5 h-1.5 rounded-full bg-emerald-500></div>
-          Connected to {{ activeConnection.name }}
+          <div w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse></div>
+          Connected to {{ activeConnection.group }} {{ activeConnection.name }}
         </template>
         <template v-else>
           <div w-1.5 h-1.5 rounded-full bg-gray-600></div>

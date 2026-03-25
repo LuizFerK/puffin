@@ -6,8 +6,7 @@ const STORE_FILE = 'queries.json'
 
 const savedQueries = ref<SavedQuery[]>([])
 const consoleState = ref<QueryConsoleState>({
-  queryText: '',
-  editorHeight: 300,
+  queryText: ''
 })
 const loaded = ref(false)
 

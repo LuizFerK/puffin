@@ -73,7 +73,7 @@ function cancelForm() {
 </script>
 
 <template>
-  <div max-w="50%" m-auto mt-8 flex flex-col>
+  <div max-w="90%" lg:max-w="50%" xl:max-w="30%" m-auto mt-8 flex flex-col>
     <!-- Header -->
     <header mb-4 flex justify-between items-center gap-4>
       <div>
@@ -101,27 +101,27 @@ function cancelForm() {
         <!-- Row 1 -->
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Connection Name</label>
-          <input v-model="formData.name" type="text" placeholder="e.g. My Production DB" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.name" type="text" placeholder="e.g. My Production DB" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Group (Optional)</label>
-          <input v-model="formData.group" type="text" placeholder="e.g. Production" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.group" type="text" placeholder="e.g. Production" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
         
         <!-- Row 2 -->
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Host</label>
-          <input v-model="formData.host" type="text" placeholder="localhost or domain" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.host" type="text" placeholder="localhost or domain" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Port</label>
-          <input v-model="formData.port" type="number" placeholder="5432" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.port" type="number" placeholder="5432" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
 
         <!-- Row 3 -->
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Database</label>
-          <input v-model="formData.database" type="text" placeholder="postgres" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.database" type="text" placeholder="postgres" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
         <div flex flex-col gap-1>
         </div> <!-- Empty spacer -->
@@ -129,11 +129,11 @@ function cancelForm() {
         <!-- Row 4 -->
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Username</label>
-          <input v-model="formData.username" type="text" placeholder="admin" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.username" type="text" placeholder="admin" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
         <div flex flex-col gap-1>
           <label text-sm text-gray-400 font-medium>Password</label>
-          <input v-model="formData.password" type="password" placeholder="••••••••" bg-black border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500 transition />
+          <input v-model="formData.password" type="password" placeholder="••••••••" bg-transparent border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-700 transition />
         </div>
       </div>
       
@@ -182,7 +182,7 @@ function cancelForm() {
             </div>
             
             <div flex-1 flex flex-col>
-              <span font-medium text-gray-200 text-base>{{ conn.name }}</span>
+              <span font-medium text-gray-200 text-base>{{ groupName }} {{ conn.name }}</span>
               <span text-sm text-gray-500 font-mono mt-0.5>{{ conn.host }}:{{ conn.port }}/{{ conn.database }}</span>
             </div>
 

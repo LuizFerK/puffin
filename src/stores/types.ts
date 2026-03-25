@@ -19,5 +19,4 @@ export interface SavedQuery {
 
 export interface QueryConsoleState {
   queryText: string
-  editorHeight: number
 }
