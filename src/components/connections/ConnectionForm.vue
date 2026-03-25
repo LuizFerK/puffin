@@ -16,13 +16,13 @@ defineEmits<{
     <div grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-6 pb-0>
       <!-- Row 1 -->
       <FormInput
-        label="Connection Name"
-        v-model="formData.name"
-        placeholder="e.g. My Production DB"
+        label="Group"
+        v-model="formData.group"
+        placeholder="e.g. Capybara"
       />
       <FormInput
-        label="Group (Optional)"
-        v-model="formData.group"
+        label="Connection Name"
+        v-model="formData.name"
         placeholder="e.g. Production"
       />
 

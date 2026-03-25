@@ -10,6 +10,7 @@ defineProps<{
 defineEmits<{
   hover: [id: number];
   delete: [query: SavedQuery];
+  copy: [query: SavedQuery];
 }>();
 </script>
 
@@ -45,6 +46,7 @@ defineEmits<{
         :is-active="activeQueryId === query.id"
         @hover="$emit('hover', query.id)"
         @delete="$emit('delete', query)"
+        @copy="$emit('copy', query)"
       />
     </div>
   </div>

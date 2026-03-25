@@ -10,6 +10,7 @@ defineProps<{
 defineEmits<{
   hover: [];
   delete: [];
+  copy: [];
 }>();
 </script>
 
@@ -34,7 +35,7 @@ defineEmits<{
     <div i-lucide-bookmark text-yellow="600/80" mt-0.5></div>
     <div flex-1 flex flex-col gap-1>
       <span text-sm font-medium text-gray-200>{{ query.name }}</span>
-      <div text-xs flex items-center gap-2>
+      <div text-xs flex items-center gap-1>
         <span
           px-1
           pt-0.5
@@ -50,7 +51,13 @@ defineEmits<{
       </div>
     </div>
 
-    <div opacity-0 group-hover:opacity-100 transition-opacity>
+    <div opacity-0 group-hover:opacity-100 transition-opacity flex gap-1>
+      <Button
+        icon="i-lucide-terminal"
+        variant="secondary"
+        class="hover:!text-green-400 hover:!bg-green-500/10 px-2!"
+        @click.stop="$emit('copy')"
+      />
       <Button
         icon="i-lucide-trash"
         variant="secondary"

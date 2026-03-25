@@ -13,7 +13,13 @@ defineEmits<{
   <div flex-1 overflow-auto>
     <table text-left text-xs font-mono border-collapse>
       <thead>
-        <tr text-gray-500 border-b border-gray="800/60">
+        <tr
+          text-gray-500
+          border-b
+          border-b-gray="800/60"
+          border-r
+          border-r-gray="800/40"
+        >
           <th font-medium uppercase py-3 px-4 w-12>#</th>
           <th
             v-for="col in columns"
@@ -33,6 +39,7 @@ defineEmits<{
           v-for="(row, i) in rows"
           :key="i"
           border-b
+          border-r
           border-gray="800/40"
           hover:bg-gray="800/20"
           transition-colors

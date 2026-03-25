@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import Button from "../components/Button.vue";
 import Modal from "../components/Modal.vue";
 import QueryList from "../components/collection/QueryList.vue";
@@ -7,11 +8,17 @@ import QueryPreview from "../components/collection/QueryPreview.vue";
 import { useQueryStore } from "../stores/queryStore";
 import type { SavedQuery } from "../stores/types";
 
-const { savedQueries, loadQueries, removeQuery } = useQueryStore();
+const { savedQueries, loadQueries, removeQuery, updateConsoleState } = useQueryStore();
+const router = useRouter();
 
 onMounted(() => loadQueries());
 
 const activeQueryId = ref<number | null>(null);
+
+async function copyQuery(query: SavedQuery) {
+  await updateConsoleState({ queryText: query.code });
+  router.push("/");
+}
 
 const activeQuery = computed(() => {
   return savedQueries.value.find((q) => q.id === activeQueryId.value);
@@ -47,6 +54,7 @@ async function confirmDelete() {
       :active-query-id="activeQueryId"
       @hover="onHover"
       @delete="openDeleteModal"
+      @copy="copyQuery"
     />
 
     <!-- Editor Preview Pane -->
