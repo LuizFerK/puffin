@@ -225,7 +225,7 @@ function copyCell(e: MouseEvent, value: unknown) {
     </Modal>
 
     <!-- Editor Wrapper -->
-    <QueryEditor v-model="queryText" :height="editorHeight" />
+    <QueryEditor v-model="queryText" :height="editorHeight" @execute="executeQuery" />
 
     <!-- Resizer -->
     <div

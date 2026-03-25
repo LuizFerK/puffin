@@ -5,6 +5,7 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::Instant;
 use tokio_postgres::{types::Type, NoTls};
 use uuid::Uuid;
@@ -67,6 +68,11 @@ struct QueryResult {
     rows: Vec<Vec<serde_json::Value>>,
     row_count: usize,
     elapsed_ms: u128,
+}
+
+#[derive(Serialize)]
+struct SchemaInfo {
+    tables: HashMap<String, Vec<String>>,
 }
 
 fn pg_value_to_json(
@@ -201,6 +207,48 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
     })
 }
 
+#[tauri::command]
+async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, String> {
+    let password = connection.password.unwrap_or_default();
+
+    let conn_string = format!(
+        "host={} port={} dbname={} user={} password={}",
+        connection.host, connection.port, connection.database, connection.username, password
+    );
+
+    let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
+        .await
+        .map_err(|e| format!("Connection failed: {}", e))?;
+
+    tokio::spawn(async move {
+        if let Err(e) = conn.await {
+            eprintln!("Connection error: {}", e);
+        }
+    });
+
+    let sql = "
+        SELECT table_name, column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        ORDER BY table_name, ordinal_position;
+    ";
+
+    let rows = client
+        .query(sql, &[])
+        .await
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut tables: HashMap<String, Vec<String>> = HashMap::new();
+
+    for row in rows {
+        let table_name: String = row.get("table_name");
+        let column_name: String = row.get("column_name");
+        tables.entry(table_name).or_default().push(column_name);
+    }
+
+    Ok(SchemaInfo { tables })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -209,7 +257,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             encrypt_password,
             decrypt_password,
-            execute_query
+            execute_query,
+            fetch_schema
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
