@@ -7,6 +7,7 @@ import QueryEditor from "../components/console/QueryEditor.vue";
 import ResultsPanel from "../components/console/ResultsPanel.vue";
 import { useQueryStore } from "../stores/queryStore";
 import { useConnectionStore } from "../stores/connectionStore";
+import type { ComponentPublicInstance } from "vue";
 
 const { consoleState, loadQueries, addQuery, updateConsoleState } =
   useQueryStore();
@@ -17,12 +18,10 @@ onMounted(async () => {
   await loadQueries();
   queryText.value = consoleState.value.queryText || "";
   editorHeight.value = Math.round((window.innerHeight - 60) / 2);
-  document.addEventListener("keydown", handleKeydown);
   window.addEventListener("resize", onResize);
 });
 
 onUnmounted(() => {
-  document.removeEventListener("keydown", handleKeydown);
   window.removeEventListener("resize", onResize);
 });
 
@@ -30,16 +29,15 @@ function onResize() {
   editorHeight.value = Math.round((window.innerHeight - 60) / 2);
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-    e.preventDefault();
-    executeQuery();
-  }
-}
-
 const editorHeight = ref(300);
 const isDragging = ref(false);
 const queryText = ref("");
+const editorRef = ref<ComponentPublicInstance<{ getQueryAtCursor: () => string | null }> | null>(null);
+
+function executeFromButton() {
+  const query = editorRef.value?.getQueryAtCursor?.();
+  executeQuery(query ?? undefined);
+}
 
 // Query execution state
 interface QueryResult {
@@ -53,8 +51,9 @@ const results = ref<QueryResult | null>(null);
 const queryError = ref<string | null>(null);
 const isExecuting = ref(false);
 
-async function executeQuery() {
-  if (!queryText.value.trim()) return;
+async function executeQuery(sql?: string) {
+  const queryToRun = sql || queryText.value.trim();
+  if (!queryToRun) return;
   if (!activeConnection.value) {
     queryError.value = "No active connection. Select a connection first.";
     results.value = null;
@@ -75,7 +74,7 @@ async function executeQuery() {
         username: conn.username,
         password: conn.password || "",
       },
-      sql: queryText.value,
+      sql: queryToRun,
     });
     results.value = result;
   } catch (e) {
@@ -174,7 +173,7 @@ function copyCell(e: MouseEvent, value: unknown) {
         <Button
           icon="i-lucide-play"
           variant="primary"
-          @click="executeQuery"
+          @click="executeFromButton"
           :class="{ 'opacity-50 pointer-events-none': isExecuting }"
         >
           {{ isExecuting ? "Running..." : "Execute" }}
@@ -225,7 +224,7 @@ function copyCell(e: MouseEvent, value: unknown) {
     </Modal>
 
     <!-- Editor Wrapper -->
-    <QueryEditor v-model="queryText" :height="editorHeight" @execute="executeQuery" />
+    <QueryEditor ref="editorRef" v-model="queryText" :height="editorHeight" @execute="(q: string) => executeQuery(q)" />
 
     <!-- Resizer -->
     <div

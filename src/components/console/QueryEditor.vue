@@ -17,7 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
-  "execute": [];
+  "execute": [query: string];
 }>();
 
 const editorContainer = ref<HTMLElement | null>(null);
@@ -55,7 +55,8 @@ onMounted(() => {
 
   // Bind Ctrl+Enter (Cmd+Enter on Mac) to execute
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    emit("execute");
+    const query = getQueryAtCursor();
+    if (query) emit("execute", query);
   });
 
   // Register completion provider
@@ -100,6 +101,69 @@ onMounted(() => {
     },
   });
 });
+
+function getQueryAtCursor(): string | null {
+  if (!editor) return null;
+
+  const model = editor.getModel();
+  if (!model) return null;
+
+  const fullText = model.getValue();
+  const position = editor.getPosition();
+  if (!position) return null;
+
+  const cursorOffset = model.getOffsetAt(position);
+
+  // Split the text into segments by semicolons or double-newlines.
+  // We walk through and record each segment's start/end offsets.
+  const segments: { start: number; end: number; text: string }[] = [];
+  const regex = /;|\n\s*\n/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(fullText)) !== null) {
+    const segText = fullText.slice(lastIndex, match.index);
+    if (segText.trim()) {
+      segments.push({ start: lastIndex, end: match.index, text: segText.trim() });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text after last delimiter
+  const remaining = fullText.slice(lastIndex);
+  if (remaining.trim()) {
+    segments.push({ start: lastIndex, end: fullText.length, text: remaining.trim() });
+  }
+
+  // If no segments found, treat the entire text as a single query
+  if (segments.length === 0) {
+    return fullText.trim() || null;
+  }
+
+  // Find the segment that contains the cursor offset
+  for (const seg of segments) {
+    if (cursorOffset >= seg.start && cursorOffset <= seg.end) {
+      return seg.text;
+    }
+  }
+
+  // Cursor is between segments (e.g. on a blank line) — find the nearest one
+  let nearest = segments[0];
+  let minDist = Infinity;
+  for (const seg of segments) {
+    const dist = Math.min(
+      Math.abs(cursorOffset - seg.start),
+      Math.abs(cursorOffset - seg.end)
+    );
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = seg;
+    }
+  }
+  return nearest.text;
+}
+
+defineExpose({ getQueryAtCursor });
 
 watch(
   () => props.modelValue,
