@@ -31,21 +31,7 @@ function navigate(path: string) {
       border-gray-800
     >
       <div flex items-center gap-2>
-        <div
-          w-8
-          h-8
-          rounded-lg
-          bg-gradient-to-br
-          from-green-500
-          to-emerald-500
-          flex
-          items-center
-          justify-center
-          shadow-lg
-          shadow-blue="500/20"
-        >
-          <span text-white font-bold text-lg italic mb-0.5>P</span>
-        </div>
+        <img src="/logo.png" w-8 shadow-lg shadow-green="500/20" />
         <span text-white font-semibold italic text-xl>Puffin</span>
       </div>
       <span

@@ -80,7 +80,7 @@ export function useQuerySelector(editor: monaco.editor.IStandaloneCodeEditor) {
     const segments = getSegments();
 
     if (segments.length === 0) {
-      const fullText = model.getValue().trim();
+      const fullText = model.getValue();
       return fullText ? { start: 0, end: fullText.length, text: fullText } : null;
     }
 
@@ -157,5 +157,5 @@ export function useQuerySelector(editor: monaco.editor.IStandaloneCodeEditor) {
     decorationCollection.clear();
   }
 
-  return { getQueryAtCursor, dispose };
+  return { getQueryAtCursor, getSegmentAtCursor, dispose };
 }

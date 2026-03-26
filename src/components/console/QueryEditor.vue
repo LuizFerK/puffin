@@ -56,7 +56,10 @@ onMounted(() => {
   querySelector = useQuerySelector(editor);
 
   // Set up schema-based completions
-  schemaCompletion = useSchemaCompletion(schemaInfo);
+  schemaCompletion = useSchemaCompletion(
+    schemaInfo,
+    querySelector.getSegmentAtCursor
+  );
 
   editor.onDidChangeModelContent(() => {
     emit("update:modelValue", editor?.getValue() || "");
