@@ -19,7 +19,7 @@ export const STATEMENT_KEYWORDS = [
   "WITH",
   // TODO: DDL statements — CREATE, ALTER, DROP, TRUNCATE — not yet supported
   // by the state machine. Add states and transitions when implementing DDL.
-] as const;
+];
 
 /** Clause keywords that drive state transitions inside a query. */
 export const CLAUSE_KEYWORDS = [
@@ -70,7 +70,7 @@ export const CLAUSE_KEYWORDS = [
   "NULL",
   "TRUE",
   "FALSE",
-] as const;
+];
 
 /**
  * Common PostgreSQL functions grouped by category.
@@ -181,7 +181,7 @@ export const PG_FUNCTIONS = {
     "UNNEST",
     "GENERATE_SERIES",
   ],
-} as const;
+};
 
 /** Flat list of all function names for quick lookups. */
 export const ALL_FUNCTIONS: string[] = Object.values(PG_FUNCTIONS).flat();
