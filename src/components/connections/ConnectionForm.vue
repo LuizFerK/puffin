@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FormInput from './FormInput.vue'
 import Button from '../Button.vue'
-import type { Connection } from '../../stores/types'
+import type { Connection } from '../../types'
 
 const formData = defineModel<Omit<Connection, 'id'>>({ required: true })
 

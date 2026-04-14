@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Button from "../Button.vue";
-import type { Connection } from "../../stores/types";
+import type { Connection } from "../../types";
 
 defineProps<{
   connection: Connection;

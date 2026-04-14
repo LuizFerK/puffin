@@ -5,7 +5,7 @@ import Modal from "../components/Modal.vue";
 import ConnectionForm from "../components/connections/ConnectionForm.vue";
 import ConnectionCard from "../components/connections/ConnectionCard.vue";
 import { useConnectionStore } from "../stores/connectionStore";
-import type { Connection } from "../stores/types";
+import type { Connection } from "../types";
 
 const {
   connections,

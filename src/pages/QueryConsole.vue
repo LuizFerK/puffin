@@ -8,6 +8,7 @@ import ResultsPanel from "../components/console/ResultsPanel.vue";
 import { useQueryStore } from "../stores/queryStore";
 import { useConnectionStore } from "../stores/connectionStore";
 import type { ComponentPublicInstance } from "vue";
+import type { QueryResult, PgError } from "../types";
 
 const { consoleState, loadQueries, addQuery, updateConsoleState } =
   useQueryStore();
@@ -39,23 +40,15 @@ function executeFromButton() {
   executeQuery(query ?? undefined);
 }
 
-// Query execution state
-interface QueryResult {
-  columns: string[];
-  rows: (string | number | boolean | null)[][];
-  row_count: number;
-  elapsed_ms: number;
-}
-
 const results = ref<QueryResult | null>(null);
-const queryError = ref<string | null>(null);
+const queryError = ref<PgError | null>(null);
 const isExecuting = ref(false);
 
 async function executeQuery(sql?: string) {
   const queryToRun = sql || queryText.value.trim();
   if (!queryToRun) return;
   if (!activeConnection.value) {
-    queryError.value = "No active connection. Select a connection first.";
+    queryError.value = { detail: "No active connection. Select a connection first.", hint: null };
     results.value = null;
     return;
   }
@@ -77,8 +70,12 @@ async function executeQuery(sql?: string) {
       sql: queryToRun,
     });
     results.value = result;
-  } catch (e) {
-    queryError.value = String(e);
+  } catch (e: any) {
+    const error = e as PgError
+    queryError.value = { 
+      detail: error.detail, 
+      hint: error.hint
+    };
     results.value = null;
   } finally {
     isExecuting.value = false;

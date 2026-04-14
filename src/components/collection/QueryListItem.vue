@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Button from "../Button.vue";
-import type { SavedQuery } from "../../stores/types";
+import type { SavedQuery } from "../../types";
 
 defineProps<{
   query: SavedQuery;

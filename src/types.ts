@@ -20,3 +20,15 @@ export interface SavedQuery {
 export interface QueryConsoleState {
   queryText: string;
 }
+
+export interface QueryResult {
+  columns: string[];
+  rows: (string | number | boolean | null)[][];
+  row_count: number;
+  elapsed_ms: number;
+}
+
+export interface PgError {
+  detail: string;
+  hint: string | null;
+}

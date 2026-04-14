@@ -6,7 +6,7 @@ import Modal from "../components/Modal.vue";
 import QueryList from "../components/collection/QueryList.vue";
 import QueryPreview from "../components/collection/QueryPreview.vue";
 import { useQueryStore } from "../stores/queryStore";
-import type { SavedQuery } from "../stores/types";
+import type { SavedQuery } from "../types";
 
 const { savedQueries, loadQueries, removeQuery, updateConsoleState } = useQueryStore();
 const router = useRouter();

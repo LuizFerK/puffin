@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import QueryListItem from "./QueryListItem.vue";
-import type { SavedQuery } from "../../stores/types";
+import type { SavedQuery } from "../../types";
 
 defineProps<{
   queries: SavedQuery[];

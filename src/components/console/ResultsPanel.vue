@@ -2,17 +2,11 @@
 import ResultsFallback from "./ResultsFallback.vue";
 import ResultsHeader from "./ResultsHeader.vue";
 import ResultsTable from "./ResultsTable.vue";
-
-export interface QueryResult {
-  columns: string[];
-  rows: (string | number | boolean | null)[][];
-  row_count: number;
-  elapsed_ms: number;
-}
+import type { QueryResult, PgError } from "../../types";
 
 defineProps<{
   results: QueryResult | null;
-  error: string | null;
+  error: PgError | null;
   isExecuting: boolean;
 }>();
 

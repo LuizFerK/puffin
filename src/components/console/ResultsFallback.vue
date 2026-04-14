@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { QueryResult } from "./ResultsPanel.vue";
+import type { QueryResult, PgError } from "../../types";
+import { capitalize } from "../../helpers/stringHelpers";
 
 defineProps<{
   results: QueryResult | null;
-  error: string | null;
+  error: PgError | null;
   isExecuting: boolean;
 }>();
 </script>
@@ -11,30 +12,21 @@ defineProps<{
 <template>
   <div flex-1 flex flex-col items-center justify-center text-gray-600>
     <!-- Loading state -->
-    <div v-if="isExecuting" i-lucide-loader-2 text-xl class="animate-spin"></div>
+    <div v-if="isExecuting" i-lucide-loader-2 text-3xl class="animate-spin"></div>
 
     <!-- Error state -->
-    <div
-      v-else-if="error"
-      bg-red="500/5"
-      border
-      border-red="500/20"
-      rounded-lg
-      p-4
-      text-sm
-      text-red-400
-      font-mono
-      whitespace-pre-wrap
-    >
-      {{ error }}
-    </div>
+    <template v-else-if="error">
+      <div i-lucide-x-circle text-3xl text-red-500 mb-2></div>
+      <span text-sm text-red-400>{{ capitalize(error.detail) }}</span>
+      <span v-if="error.hint" text-xs text-red-500 opacity-70 mt-1>{{ error.hint }}</span>
+    </template>
 
     <!-- Empty state -->
     <template v-else-if="results && results.columns.length === 0">
-      <div i-lucide-check-circle text-2xl text-emerald-600 mb-2></div>
+      <div i-lucide-check-circle text-3xl text-emerald-600 mb-2></div>
         <span text-sm>Query executed successfully</span>
         <span text-xs text-gray-700 mt-1>
-          {{ results.row_count }} rows affected
+          {{ results.row_count }} rows
         </span>
     </template>
 

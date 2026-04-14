@@ -1,7 +1,7 @@
 import { ref, computed } from "vue";
 import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
-import type { Connection } from "./types";
+import type { Connection } from "../types";
 
 const STORE_FILE = "connections.json";
 

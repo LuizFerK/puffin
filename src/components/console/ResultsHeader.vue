@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { QueryResult } from "./ResultsPanel.vue";
+import type { QueryResult, PgError } from "../../types";
+import ResultsHeaderCopyToClipboard from "./ResultsHeaderCopyToClipboard.vue";
 
 defineProps<{
   results: QueryResult | null;
-  error: string | null;
+  error: PgError | null;
   isExecuting: boolean;
 }>();
 </script>
@@ -50,6 +51,14 @@ defineProps<{
         <div i-lucide-clock text-xs></div>
         {{ results.elapsed_ms }}ms
       </div>
+
+      <!-- Spacer to push copy button right -->
+      <div flex-1></div>
+
+      <ResultsHeaderCopyToClipboard
+        v-if="results.row_count > 0 && results.columns.length > 0"
+        :results="results"
+      />
     </template>
 
     <template v-else>

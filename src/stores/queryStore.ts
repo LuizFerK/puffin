@@ -1,7 +1,7 @@
 import { ref, computed, watch } from "vue";
 import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
-import type { SavedQuery, QueryConsoleState } from "./types";
+import type { SavedQuery, QueryConsoleState } from "../types";
 import { useConnectionStore } from "./connectionStore";
 
 export interface SchemaInfo {

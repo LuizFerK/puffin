@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SqlHighlighter from "../SqlHighlighter.vue";
-import type { SavedQuery } from "../../stores/types";
+import type { SavedQuery } from "../../types";
 
 defineProps<{
   query: SavedQuery | undefined;

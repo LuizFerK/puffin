@@ -150,8 +150,28 @@ fn pg_value_to_json(
     serde_json::Value::String(format!("<unsupported: {}>", col_type.name()))
 }
 
+#[derive(Serialize)]
+struct PgError {
+    detail: String,
+    hint: Option<String>,
+}
+
+fn format_pg_error(e: &tokio_postgres::Error) -> PgError {
+    if let Some(db_err) = e.as_db_error() {
+        PgError {
+            detail: db_err.message().to_string(),
+            hint: db_err.hint().map(|s| s.to_string()),
+        }
+    } else {
+        PgError {
+            detail: e.to_string(),
+            hint: None,
+        }
+    }
+}
+
 #[tauri::command]
-async fn execute_query(connection: ConnectionParams, sql: String) -> Result<QueryResult, String> {
+async fn execute_query(connection: ConnectionParams, sql: String) -> Result<QueryResult, PgError> {
     let password = connection.password.unwrap_or_default();
 
     let conn_string = format!(
@@ -161,7 +181,7 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
 
     let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
         .await
-        .map_err(|e| format!("Connection failed: {}", e))?;
+        .map_err(|e| format_pg_error(&e))?;
 
     // Spawn the connection handler
     tokio::spawn(async move {
@@ -175,7 +195,7 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
     let rows = client
         .query(&sql as &str, &[])
         .await
-        .map_err(|e| format!("Query failed: {}", e))?;
+        .map_err(|e| format_pg_error(&e))?;
 
     let elapsed_ms = start.elapsed().as_millis();
 
@@ -208,7 +228,7 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
 }
 
 #[tauri::command]
-async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, String> {
+async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, PgError> {
     let password = connection.password.unwrap_or_default();
 
     let conn_string = format!(
@@ -218,7 +238,7 @@ async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, String
 
     let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
         .await
-        .map_err(|e| format!("Connection failed: {}", e))?;
+        .map_err(|e| format_pg_error(&e))?;
 
     tokio::spawn(async move {
         if let Err(e) = conn.await {
@@ -236,7 +256,7 @@ async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, String
     let rows = client
         .query(sql, &[])
         .await
-        .map_err(|e| format!("Query failed: {}", e))?;
+        .map_err(|e| format_pg_error(&e))?;
 
     let mut tables: HashMap<String, Vec<String>> = HashMap::new();
 
