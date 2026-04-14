@@ -1,7 +1,7 @@
 import { ref, computed, watch } from "vue";
 import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
-import type { SavedQuery, QueryConsoleState } from "../types";
+import type { SavedQuery, HistoryQuery, QueryConsoleState } from "../types";
 import { useConnectionStore } from "./connectionStore";
 
 export interface SchemaInfo {
@@ -11,6 +11,7 @@ export interface SchemaInfo {
 const STORE_FILE = "queries.json";
 
 const savedQueries = ref<SavedQuery[]>([]);
+const historyQueries = ref<HistoryQuery[]>([]);
 const consoleState = ref<QueryConsoleState>({
   queryText: "",
 });
@@ -29,6 +30,7 @@ async function getStore() {
 async function persist() {
   const s = await getStore();
   await s.set("savedQueries", savedQueries.value);
+  await s.set("historyQueries", historyQueries.value);
   await s.set("consoleState", consoleState.value);
 }
 
@@ -71,6 +73,11 @@ async function loadQueries() {
     savedQueries.value = rawQueries;
   }
 
+  const rawHistory = await s.get<HistoryQuery[]>("historyQueries");
+  if (rawHistory) {
+    historyQueries.value = rawHistory;
+  }
+
   const rawConsole = await s.get<QueryConsoleState>("consoleState");
   if (rawConsole) {
     consoleState.value = rawConsole;
@@ -89,6 +96,31 @@ async function removeQuery(id: number) {
   await persist();
 }
 
+const nextHistoryId = computed(() => {
+  const maxId = historyQueries.value.reduce((max, q) => Math.max(max, q.id), 0);
+  return maxId + 1;
+});
+
+const MAX_HISTORY = 50;
+
+async function addHistoryQuery(query: Omit<HistoryQuery, "id">) {
+  historyQueries.value.unshift({ id: nextHistoryId.value, ...query });
+  if (historyQueries.value.length > MAX_HISTORY) {
+    historyQueries.value = historyQueries.value.slice(0, MAX_HISTORY);
+  }
+  await persist();
+}
+
+async function removeHistoryQuery(id: number) {
+  historyQueries.value = historyQueries.value.filter((q) => q.id !== id);
+  await persist();
+}
+
+async function clearHistory() {
+  historyQueries.value = [];
+  await persist();
+}
+
 async function updateConsoleState(state: Partial<QueryConsoleState>) {
   consoleState.value = { ...consoleState.value, ...state };
   await persist();
@@ -97,12 +129,16 @@ async function updateConsoleState(state: Partial<QueryConsoleState>) {
 export function useQueryStore() {
   return {
     savedQueries,
+    historyQueries,
     consoleState,
     loaded,
     schemaInfo,
     loadQueries,
     addQuery,
     removeQuery,
+    addHistoryQuery,
+    removeHistoryQuery,
+    clearHistory,
     updateConsoleState,
     fetchSchema,
   };

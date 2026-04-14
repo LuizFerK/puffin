@@ -10,7 +10,7 @@ import { useConnectionStore } from "../stores/connectionStore";
 import type { ComponentPublicInstance } from "vue";
 import type { QueryResult, PgError } from "../types";
 
-const { consoleState, loadQueries, addQuery, updateConsoleState } =
+const { consoleState, loadQueries, addQuery, addHistoryQuery, updateConsoleState } =
   useQueryStore();
 const { activeConnection, loadConnections } = useConnectionStore();
 
@@ -56,6 +56,13 @@ async function executeQuery(sql?: string) {
   isExecuting.value = true;
   queryError.value = null;
   results.value = null;
+
+  // Record to history
+  await addHistoryQuery({
+    connectionName: activeConnection.value?.name ?? "No connection",
+    timestamp: Date.now(),
+    code: queryToRun,
+  });
 
   try {
     const conn = activeConnection.value;

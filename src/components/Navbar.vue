@@ -10,6 +10,7 @@ const navItems = [
   { path: "/connections", label: "Connections", icon: "i-lucide-database" },
   { path: "/", label: "Query Console", icon: "i-lucide-terminal" },
   { path: "/collection", label: "Collection", icon: "i-lucide-bookmark" },
+  { path: "/history", label: "History", icon: "i-lucide-history" },
 ];
 
 function navigate(path: string) {

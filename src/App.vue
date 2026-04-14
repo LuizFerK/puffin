@@ -25,6 +25,10 @@ function handleShortcuts(e: KeyboardEvent) {
         e.preventDefault();
         router.push("/collection");
         break;
+      case "h":
+        e.preventDefault();
+        router.push("/history");
+        break;
       case "e":
         e.preventDefault();
         router.push("/");

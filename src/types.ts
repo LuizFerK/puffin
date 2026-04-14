@@ -17,6 +17,13 @@ export interface SavedQuery {
   code: string;
 }
 
+export interface HistoryQuery {
+  id: number;
+  connectionName: string;
+  timestamp: number;
+  code: string;
+}
+
 export interface QueryConsoleState {
   queryText: string;
 }
