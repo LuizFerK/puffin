@@ -86,7 +86,8 @@ function cancelForm() {
 </script>
 
 <template>
-  <div max-w="90%" lg:max-w="50%" xl:max-w="30%" m-auto mt-8 flex flex-col>
+  <div h-full overflow-y-auto>
+    <div max-w="90%" lg:max-w="50%" xl:max-w="30%" m-auto mt-8 flex flex-col pb-12>
     <!-- Header -->
     <header mb-4 flex justify-between items-center gap-4>
       <div>
@@ -204,5 +205,6 @@ function cancelForm() {
         >
       </template>
     </Modal>
+    </div>
   </div>
 </template>

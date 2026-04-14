@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useSettingsStore } from "../stores/settingsStore";
 
 const props = defineProps<{
   sql: string;
   class?: string;
 }>();
+
+const { syntaxColors } = useSettingsStore();
 
 const KEYWORDS = new Set([
   "select",
@@ -203,22 +206,15 @@ function tokenize(sql: string) {
   return tokens;
 }
 
-const colorMap: Record<string, string> = {
-  keyword: "#34d399",
-  function: "#60a5fa",
-  string: "#6ee7b7",
-  number: "#eab308",
-  comment: "#9ca3af",
-  type: "#c084fc",
-  punct: "#9ca3af",
-  ident: "#d1d5db",
+const colorMap = computed<Record<string, string>>(() => ({
+  ...syntaxColors.value,
   ws: "transparent",
-};
+}));
 
 const highlightedTokens = computed(() => tokenize(props.sql || ""));
 
 function getTokenStyle(type: string) {
-  const color = colorMap[type] || colorMap.ident;
+  const color = colorMap.value[type] || colorMap.value.ident;
   if (type === "comment") return { color, fontStyle: "italic" };
   if (type === "keyword") return { color, fontWeight: 600 };
   return { color };

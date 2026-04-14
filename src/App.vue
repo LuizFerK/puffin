@@ -2,9 +2,13 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import Navbar from "./components/Navbar.vue";
+import { useSettingsStore } from "./stores/settingsStore";
 
 const router = useRouter();
 const navbarVisible = ref(true);
+const { loadSettings } = useSettingsStore();
+
+onMounted(() => loadSettings());
 
 function handleShortcuts(e: KeyboardEvent) {
   // Ctrl+B -> toggle navbar

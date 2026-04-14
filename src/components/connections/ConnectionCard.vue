@@ -37,7 +37,7 @@ defineEmits<{
     }"
   >
     <div
-      w-10
+      min-w-10
       h-10
       rounded-lg
       flex
@@ -48,11 +48,11 @@ defineEmits<{
       <div i-lucide-server></div>
     </div>
 
-    <div flex-1 flex flex-col>
+    <div flex-1 flex flex-col w-10>
       <span font-medium text-gray-200 text-base
         >{{ connection.group }} {{ connection.name }}</span
       >
-      <span text-sm text-gray-500 font-mono mt-0.5
+      <span text-sm text-gray-500 font-mono mt-0.5 truncate
         >{{ connection.host }}:{{ connection.port }}/{{
           connection.database
         }}</span

@@ -5,6 +5,7 @@ import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import { useQueryStore } from "../../stores/queryStore";
 import { useQuerySelector } from "../../composables/useQuerySelector";
 import { useSchemaCompletion } from "../../composables/useSchemaCompletion";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 self.MonacoEnvironment = {
   getWorker() {
@@ -26,8 +27,32 @@ const editorContainer = ref<HTMLElement | null>(null);
 let editor: monaco.editor.IStandaloneCodeEditor | null = null;
 
 const { schemaInfo } = useQueryStore();
+const { syntaxColors } = useSettingsStore();
 let querySelector: ReturnType<typeof useQuerySelector> | null = null;
 let schemaCompletion: ReturnType<typeof useSchemaCompletion> | null = null;
+
+function applyTheme() {
+  const colors = syntaxColors.value;
+  monaco.editor.defineTheme("puffin-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [
+      { token: "keyword.sql", foreground: colors.keyword.replace("#", "") },
+      { token: "operator.sql", foreground: colors.keyword.replace("#", "") },
+      { token: "predefined.sql", foreground: colors.function.replace("#", "") },
+      { token: "string.sql", foreground: colors.string.replace("#", "") },
+      { token: "number.sql", foreground: colors.number.replace("#", "") },
+      { token: "comment.sql", foreground: colors.comment.replace("#", ""), fontStyle: "italic" },
+      { token: "type.sql", foreground: colors.type.replace("#", "") },
+      { token: "delimiter.sql", foreground: colors.punct.replace("#", "") },
+      { token: "identifier.sql", foreground: colors.ident.replace("#", "") },
+    ],
+    colors: {
+      "editor.background": "#0d1117",
+    },
+  });
+  monaco.editor.setTheme("puffin-dark");
+}
 
 onMounted(() => {
   if (!editorContainer.value) return;
@@ -41,16 +66,7 @@ onMounted(() => {
     scrollBeyondLastLine: false,
   });
 
-  monaco.editor.defineTheme("puffin-dark", {
-    base: "vs-dark",
-    inherit: true,
-    rules: [],
-    colors: {
-      "editor.background": "#0d1117",
-    },
-  });
-
-  monaco.editor.setTheme("puffin-dark");
+  applyTheme();
 
   // Set up query selector (highlight + cursor detection)
   querySelector = useQuerySelector(editor);
@@ -71,6 +87,9 @@ onMounted(() => {
     if (query) emit("execute", query);
   });
 });
+
+// Re-apply theme whenever user changes syntax colors
+watch(syntaxColors, () => applyTheme(), { deep: true });
 
 function getQueryAtCursor(): string | null {
   return querySelector?.getQueryAtCursor() ?? null;
