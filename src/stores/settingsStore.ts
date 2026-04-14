@@ -116,6 +116,19 @@ const isHistoryDefault = computed(() =>
   historyRetention.value === DEFAULT_HISTORY_RETENTION
 );
 
+async function resetHistorySettings() {
+  historyMaxCount.value = DEFAULT_HISTORY_MAX_COUNT;
+  historyRetention.value = DEFAULT_HISTORY_RETENTION;
+  await persist();
+}
+
+async function resetAllSettings() {
+  syntaxColors.value = { ...DEFAULT_SYNTAX_COLORS };
+  historyMaxCount.value = DEFAULT_HISTORY_MAX_COUNT;
+  historyRetention.value = DEFAULT_HISTORY_RETENTION;
+  await persist();
+}
+
 export function useSettingsStore() {
   return {
     syntaxColors,
@@ -129,5 +142,7 @@ export function useSettingsStore() {
     resetSyntaxColors,
     updateHistoryMaxCount,
     updateHistoryRetention,
+    resetHistorySettings,
+    resetAllSettings,
   };
 }

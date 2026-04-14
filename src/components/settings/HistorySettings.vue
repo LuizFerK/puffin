@@ -1,32 +1,52 @@
 <script setup lang="ts">
+import Select from "../Select.vue";
+import Button from "../Button.vue";
 import { useSettingsStore, HISTORY_RETENTION_OPTIONS } from "../../stores/settingsStore";
 import type { HistoryRetention } from "../../stores/settingsStore";
 
 const {
   historyMaxCount,
   historyRetention,
+  isHistoryDefault,
   updateHistoryMaxCount,
   updateHistoryRetention,
+  resetHistorySettings,
 } = useSettingsStore();
 
-const countOptions = [10, 25, 50, 100, 200, 500];
+const countOptions = [10, 25, 50, 100, 200, 500].map((n) => ({
+  value: n,
+  label: String(n),
+}));
 
-function handleCountChange(e: Event) {
-  const val = Number((e.target as HTMLSelectElement).value);
-  updateHistoryMaxCount(val);
+const retentionOptions = HISTORY_RETENTION_OPTIONS.map((o) => ({
+  value: o.value as string | number,
+  label: o.label,
+}));
+
+function onCountChange(val: string | number) {
+  updateHistoryMaxCount(Number(val));
 }
 
-function handleRetentionChange(e: Event) {
-  const val = (e.target as HTMLSelectElement).value as HistoryRetention;
-  updateHistoryRetention(val);
+function onRetentionChange(val: string | number) {
+  updateHistoryRetention(val as HistoryRetention);
 }
 </script>
 
 <template>
   <section>
-    <div flex items-center gap-2 mb-4>
-      <div i-lucide-history text-emerald-500 text-lg></div>
-      <h2 text-base font-semibold text-gray-200>Query History</h2>
+    <div flex items-center justify-between mb-4>
+      <div flex items-center gap-2 py-2>
+        <div i-lucide-history text-emerald-500 text-lg></div>
+        <h2 text-base font-semibold text-gray-200>Query History</h2>
+      </div>
+      <Button
+        v-if="!isHistoryDefault"
+        icon="i-lucide-rotate-ccw"
+        variant="secondary"
+        @click="resetHistorySettings"
+      >
+        Reset
+      </Button>
     </div>
 
     <div
@@ -34,7 +54,6 @@ function handleRetentionChange(e: Event) {
       border
       border-gray-800
       bg="gray-900/30"
-      overflow-hidden
     >
       <!-- Max queries -->
       <div
@@ -46,22 +65,14 @@ function handleRetentionChange(e: Event) {
         py-4
       >
         <div>
-          <div text-sm font-medium text-gray-200>Maximum queries</div>
+          <div text-sm font-medium text-gray-200 mb-1>Maximum queries</div>
           <div text-xs text-gray-500>Oldest entries are removed when the limit is reached</div>
         </div>
-        <select
-          :value="historyMaxCount"
-          @change="handleCountChange"
-          class="settings-select"
-        >
-          <option
-            v-for="opt in countOptions"
-            :key="opt"
-            :value="opt"
-          >
-            {{ opt }}
-          </option>
-        </select>
+        <Select
+          :model-value="historyMaxCount"
+          :options="countOptions"
+          @update:model-value="onCountChange"
+        />
       </div>
 
       <!-- Retention period -->
@@ -76,54 +87,15 @@ function handleRetentionChange(e: Event) {
         border-gray-800
       >
         <div>
-          <div text-sm font-medium text-gray-200>Keep history for</div>
+          <div text-sm font-medium text-gray-200 mb-1>Keep history for</div>
           <div text-xs text-gray-500>Queries older than this are automatically removed</div>
         </div>
-        <select
-          :value="historyRetention"
-          @change="handleRetentionChange"
-          class="settings-select"
-        >
-          <option
-            v-for="opt in HISTORY_RETENTION_OPTIONS"
-            :key="opt.value"
-            :value="opt.value"
-          >
-            {{ opt.label }}
-          </option>
-        </select>
+        <Select
+          :model-value="historyRetention"
+          :options="retentionOptions"
+          @update:model-value="onRetentionChange"
+        />
       </div>
     </div>
   </section>
 </template>
-
-<style scoped>
-.settings-select {
-  appearance: none;
-  background-color: rgba(31, 41, 55, 0.5);
-  border: 1px solid #374151;
-  border-radius: 8px;
-  color: #d1d5db;
-  font-size: 13px;
-  padding: 6px 32px 6px 12px;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.15s ease;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-}
-
-.settings-select:hover {
-  border-color: #4b5563;
-}
-
-.settings-select:focus {
-  border-color: rgba(16, 185, 129, 0.5);
-}
-
-.settings-select option {
-  background-color: #1f2937;
-  color: #d1d5db;
-}
-</style>

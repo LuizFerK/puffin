@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import Button from "../Button.vue";
 import SqlHighlighter from "../SqlHighlighter.vue";
+import ColorPicker from "../ColorPicker.vue";
 import { useSettingsStore } from "../../stores/settingsStore";
 import type { SyntaxColors } from "../../stores/settingsStore";
 
@@ -46,16 +47,15 @@ const isDefault = computed(() => {
   );
 });
 
-function handleColorInput(key: keyof SyntaxColors, event: Event) {
-  const target = event.target as HTMLInputElement;
-  updateSyntaxColor(key, target.value);
+function handleColorChange(key: keyof SyntaxColors, color: string) {
+  updateSyntaxColor(key, color);
 }
 </script>
 
 <template>
   <section>
     <div flex items-center justify-between mb-4>
-      <div flex items-center gap-2>
+      <div flex items-center gap-2 py-2>
         <div i-lucide-palette text-emerald-500 text-lg></div>
         <h2 text-base font-semibold text-gray-200>Syntax Highlighting</h2>
       </div>
@@ -75,7 +75,6 @@ function handleColorInput(key: keyof SyntaxColors, event: Event) {
       border
       border-gray-800
       bg="gray-900/30"
-      overflow-hidden
     >
       <div
         v-for="(entry, idx) in tokenEntries"
@@ -89,22 +88,15 @@ function handleColorInput(key: keyof SyntaxColors, event: Event) {
         hover:bg="gray-800/30"
         transition-colors
       >
-        <!-- Color swatch + picker -->
-        <label
-          class="color-swatch"
-          :style="{ backgroundColor: syntaxColors[entry.key] }"
-        >
-          <input
-            type="color"
-            :value="syntaxColors[entry.key]"
-            @input="handleColorInput(entry.key, $event)"
-            class="color-input"
-          />
-        </label>
+        <!-- Color picker -->
+        <ColorPicker
+          :model-value="syntaxColors[entry.key]"
+          @update:model-value="handleColorChange(entry.key, $event)"
+        />
 
         <!-- Label & example -->
         <div flex-1 min-w-0>
-          <div text-sm font-medium text-gray-200>{{ entry.label }}</div>
+          <div text-sm font-medium text-gray-200 mb-1>{{ entry.label }}</div>
           <div text-xs text-gray-500 font-mono truncate>
             {{ entry.example }}
           </div>
@@ -139,7 +131,7 @@ function handleColorInput(key: keyof SyntaxColors, event: Event) {
         overflow-hidden
       >
         <div
-          px-1
+          px-3
           py-2
           border-b
           border-gray-800
@@ -148,10 +140,8 @@ function handleColorInput(key: keyof SyntaxColors, event: Event) {
           gap-2
           bg="gray-900/40"
         >
-          <div w-2.5 h-2.5 rounded-full bg="red-500/60"></div>
-          <div w-2.5 h-2.5 rounded-full bg="yellow-500/60"></div>
-          <div w-2.5 h-2.5 rounded-full bg="green-500/60"></div>
-          <span text-xs text-gray-600 ml-2>preview.sql</span>
+          <div i-lucide-code-2 color-gray text-sm></div>
+          <span text-xs text-gray-600>preview.sql</span>
         </div>
         <SqlHighlighter
           :sql="SAMPLE_SQL"
@@ -163,34 +153,6 @@ function handleColorInput(key: keyof SyntaxColors, event: Event) {
 </template>
 
 <style scoped>
-.color-swatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.color-swatch:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: scale(1.08);
-}
-
-.color-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  border: none;
-  padding: 0;
-}
-
 .preview-code {
   padding: 16px 20px;
   font-size: 13px;
