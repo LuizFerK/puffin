@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import Button from "./Button.vue";
+import Button from "./Button.vue"
 
 defineProps<{
-  open: boolean;
-  title?: string;
-}>();
+  open: boolean
+  title?: string
+}>()
 
 const emit = defineEmits<{
-  close: [];
-}>();
+  close: []
+}>()
 </script>
 
 <template>

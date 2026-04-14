@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import Button from "../Button.vue";
-import type { SavedQuery } from "../../types";
+import Button from "../Button.vue"
+import type { SavedQuery } from "../../types"
 
 defineProps<{
-  query: SavedQuery;
-  isActive: boolean;
-}>();
+  query: SavedQuery
+  isActive: boolean
+}>()
 
 defineEmits<{
-  hover: [];
-  delete: [];
-  copy: [];
-}>();
+  hover: []
+  delete: []
+  copy: []
+}>()
 </script>
 
 <template>

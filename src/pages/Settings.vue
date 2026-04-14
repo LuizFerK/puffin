@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { onMounted, computed } from "vue";
-import Button from "../components/Button.vue";
-import SyntaxHighlighting from "../components/settings/SyntaxHighlighting.vue";
-import HistorySettings from "../components/settings/HistorySettings.vue";
-import { useSettingsStore } from "../stores/settingsStore";
+import { onMounted, computed } from "vue"
+import Button from "../components/Button.vue"
+import SyntaxHighlighting from "../components/settings/SyntaxHighlighting.vue"
+import HistorySettings from "../components/settings/HistorySettings.vue"
+import { useSettingsStore } from "../stores/settingsStore"
 
-const { loadSettings, isHistoryDefault, resetAllSettings } = useSettingsStore();
-const { syntaxColors, defaultSyntaxColors } = useSettingsStore();
+const { loadSettings, isHistoryDefault, resetAllSettings } = useSettingsStore()
+const { syntaxColors, defaultSyntaxColors } = useSettingsStore()
 
-onMounted(() => loadSettings());
+onMounted(() => loadSettings())
 
 const isAllDefault = computed(() => {
-  const colorsDefault = (Object.keys(defaultSyntaxColors.value) as (keyof typeof defaultSyntaxColors.value)[])
-    .every((k) => syntaxColors.value[k] === defaultSyntaxColors.value[k]);
-  return colorsDefault && isHistoryDefault.value;
-});
+  const colorsDefault = (
+    Object.keys(
+      defaultSyntaxColors.value,
+    ) as (keyof typeof defaultSyntaxColors.value)[]
+  ).every((k) => syntaxColors.value[k] === defaultSyntaxColors.value[k])
+  return colorsDefault && isHistoryDefault.value
+})
 </script>
 
 <template>
@@ -42,14 +45,7 @@ const isAllDefault = computed(() => {
       <SyntaxHighlighting />
 
       <!-- Reset All -->
-      <div
-        v-if="!isAllDefault"
-        border-t
-        border-gray-800
-        pt-6
-        flex
-        justify-end
-      >
+      <div v-if="!isAllDefault" border-t border-gray-800 pt-6 flex justify-end>
         <Button
           icon="i-lucide-rotate-ccw"
           variant="secondary"

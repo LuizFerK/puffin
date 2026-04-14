@@ -1,12 +1,12 @@
 <script setup lang="ts">
 defineProps<{
-  columns: string[];
-  rows: (string | number | boolean | null)[][];
-}>();
+  columns: string[]
+  rows: (string | number | boolean | null)[][]
+}>()
 
 defineEmits<{
-  "copy-cell": [e: MouseEvent, value: unknown];
-}>();
+  "copy-cell": [e: MouseEvent, value: unknown]
+}>()
 </script>
 
 <template>

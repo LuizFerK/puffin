@@ -1,48 +1,49 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import Button from "../components/Button.vue";
-import Modal from "../components/Modal.vue";
-import QueryList from "../components/collection/QueryList.vue";
-import QueryPreview from "../components/collection/QueryPreview.vue";
-import { useQueryStore } from "../stores/queryStore";
-import type { SavedQuery } from "../types";
+import { ref, computed, onMounted } from "vue"
+import { useRouter } from "vue-router"
+import Button from "../components/Button.vue"
+import Modal from "../components/Modal.vue"
+import QueryList from "../components/collection/QueryList.vue"
+import QueryPreview from "../components/collection/QueryPreview.vue"
+import { useQueryStore } from "../stores/queryStore"
+import type { SavedQuery } from "../types"
 
-const { savedQueries, loadQueries, removeQuery, updateConsoleState } = useQueryStore();
-const router = useRouter();
+const { savedQueries, loadQueries, removeQuery, updateConsoleState } =
+  useQueryStore()
+const router = useRouter()
 
-onMounted(() => loadQueries());
+onMounted(() => loadQueries())
 
-const activeQueryId = ref<number | null>(null);
+const activeQueryId = ref<number | null>(null)
 
 async function copyQuery(query: SavedQuery) {
-  await updateConsoleState({ queryText: query.code });
-  router.push("/");
+  await updateConsoleState({ queryText: query.code })
+  router.push("/")
 }
 
 const activeQuery = computed(() => {
-  return savedQueries.value.find((q) => q.id === activeQueryId.value);
-});
+  return savedQueries.value.find((q) => q.id === activeQueryId.value)
+})
 
 function onHover(id: number) {
-  activeQueryId.value = id;
+  activeQueryId.value = id
 }
 
 // Delete confirmation
-const queryToDelete = ref<SavedQuery | null>(null);
-const isDeleteModalOpen = ref(false);
+const queryToDelete = ref<SavedQuery | null>(null)
+const isDeleteModalOpen = ref(false)
 
 function openDeleteModal(query: SavedQuery) {
-  queryToDelete.value = query;
-  isDeleteModalOpen.value = true;
+  queryToDelete.value = query
+  isDeleteModalOpen.value = true
 }
 
 async function confirmDelete() {
   if (queryToDelete.value) {
-    await removeQuery(queryToDelete.value.id);
+    await removeQuery(queryToDelete.value.id)
   }
-  isDeleteModalOpen.value = false;
-  queryToDelete.value = null;
+  isDeleteModalOpen.value = false
+  queryToDelete.value = null
 }
 </script>
 

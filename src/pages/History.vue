@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import Button from "../components/Button.vue";
-import Modal from "../components/Modal.vue";
-import HistoryList from "../components/history/HistoryList.vue";
-import HistoryPreview from "../components/history/HistoryPreview.vue";
-import { useQueryStore } from "../stores/queryStore";
-import { useSettingsStore } from "../stores/settingsStore";
-import type { HistoryQuery } from "../types";
+import { ref, computed, onMounted } from "vue"
+import { useRouter } from "vue-router"
+import Button from "../components/Button.vue"
+import Modal from "../components/Modal.vue"
+import HistoryList from "../components/history/HistoryList.vue"
+import HistoryPreview from "../components/history/HistoryPreview.vue"
+import { useQueryStore } from "../stores/queryStore"
+import { useSettingsStore } from "../stores/settingsStore"
+import type { HistoryQuery } from "../types"
 
 const {
   historyQueries,
@@ -16,55 +16,55 @@ const {
   pruneHistory,
   clearHistory,
   updateConsoleState,
-} = useQueryStore();
-const { loadSettings } = useSettingsStore();
-const router = useRouter();
+} = useQueryStore()
+const { loadSettings } = useSettingsStore()
+const router = useRouter()
 
 onMounted(async () => {
-  await loadSettings();
-  await loadQueries();
-  pruneHistory();
-});
+  await loadSettings()
+  await loadQueries()
+  pruneHistory()
+})
 
-const activeQueryId = ref<number | null>(null);
+const activeQueryId = ref<number | null>(null)
 
 async function copyQuery(query: HistoryQuery) {
-  await updateConsoleState({ queryText: query.code });
-  router.push("/");
+  await updateConsoleState({ queryText: query.code })
+  router.push("/")
 }
 
 const activeQuery = computed(() => {
-  return historyQueries.value.find((q) => q.id === activeQueryId.value);
-});
+  return historyQueries.value.find((q) => q.id === activeQueryId.value)
+})
 
 function onHover(id: number) {
-  activeQueryId.value = id;
+  activeQueryId.value = id
 }
 
 // Delete confirmation
-const queryToDelete = ref<HistoryQuery | null>(null);
-const isDeleteModalOpen = ref(false);
+const queryToDelete = ref<HistoryQuery | null>(null)
+const isDeleteModalOpen = ref(false)
 
 function openDeleteModal(query: HistoryQuery) {
-  queryToDelete.value = query;
-  isDeleteModalOpen.value = true;
+  queryToDelete.value = query
+  isDeleteModalOpen.value = true
 }
 
 async function confirmDelete() {
   if (queryToDelete.value) {
-    await removeHistoryQuery(queryToDelete.value.id);
+    await removeHistoryQuery(queryToDelete.value.id)
   }
-  isDeleteModalOpen.value = false;
-  queryToDelete.value = null;
+  isDeleteModalOpen.value = false
+  queryToDelete.value = null
 }
 
 // Clear all confirmation
-const isClearModalOpen = ref(false);
+const isClearModalOpen = ref(false)
 
 async function confirmClear() {
-  await clearHistory();
-  activeQueryId.value = null;
-  isClearModalOpen.value = false;
+  await clearHistory()
+  activeQueryId.value = null
+  isClearModalOpen.value = false
 }
 </script>
 

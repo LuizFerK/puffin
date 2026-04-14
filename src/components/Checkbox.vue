@@ -1,14 +1,10 @@
 <script setup lang="ts">
-const model = defineModel<boolean>({ required: true });
+const model = defineModel<boolean>({ required: true })
 </script>
 
 <template>
   <label flex items-center gap-3 cursor-pointer select-none group>
-    <input
-      type="checkbox"
-      v-model="model"
-      class="checkbox"
-    />
+    <input type="checkbox" v-model="model" class="checkbox" />
     <span text-sm text-gray-400 group-hover:text-gray-300 transition-colors>
       <slot />
     </span>

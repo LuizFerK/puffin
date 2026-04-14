@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import FormInput from './FormInput.vue'
-import Button from '../Button.vue'
-import type { Connection } from '../../types'
+import FormInput from "./FormInput.vue"
+import Button from "../Button.vue"
+import type { Connection } from "../../types"
 
-const formData = defineModel<Omit<Connection, 'id'>>({ required: true })
+const formData = defineModel<Omit<Connection, "id">>({ required: true })
 
 defineEmits<{
   submit: []
@@ -62,9 +62,7 @@ defineEmits<{
     </div>
 
     <div mt-6 px-6 py-4 border-t border-gray-800 flex justify-end gap-3>
-      <Button @click="$emit('cancel')" variant="secondary">
-        Cancel
-      </Button>
+      <Button @click="$emit('cancel')" variant="secondary"> Cancel </Button>
       <Button @click="$emit('submit')" variant="primary">
         Save Connection
       </Button>

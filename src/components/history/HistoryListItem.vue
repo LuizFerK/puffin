@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import Button from "../Button.vue";
-import { timeAgo } from "../../helpers/dateHelpers";
-import type { HistoryQuery } from "../../types";
+import { computed } from "vue"
+import Button from "../Button.vue"
+import { timeAgo } from "../../helpers/dateHelpers"
+import type { HistoryQuery } from "../../types"
 
 const props = defineProps<{
-  query: HistoryQuery;
-  isActive: boolean;
-}>();
+  query: HistoryQuery
+  isActive: boolean
+}>()
 
 defineEmits<{
-  hover: [];
-  delete: [];
-  copy: [];
-}>();
+  hover: []
+  delete: []
+  copy: []
+}>()
 
 const preview = computed(() => {
-  const trimmed = props.query.code.trim().replace(/\s+/g, " ");
-  return trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed;
-});
+  const trimmed = props.query.code.trim().replace(/\s+/g, " ")
+  return trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed
+})
 </script>
 
 <template>
@@ -54,7 +54,9 @@ const preview = computed(() => {
           border-gray-700
           >{{ query.connectionName }}</span
         >
-        <span text-gray-600 font-mono text-xs mt-0.5>{{ timeAgo(query.timestamp) }}</span>
+        <span text-gray-600 font-mono text-xs mt-0.5>{{
+          timeAgo(query.timestamp)
+        }}</span>
       </div>
     </div>
 

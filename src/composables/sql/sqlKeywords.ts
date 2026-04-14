@@ -19,7 +19,7 @@ export const STATEMENT_KEYWORDS = [
   "WITH",
   // TODO: DDL statements — CREATE, ALTER, DROP, TRUNCATE — not yet supported
   // by the state machine. Add states and transitions when implementing DDL.
-];
+]
 
 /** Clause keywords that drive state transitions inside a query. */
 export const CLAUSE_KEYWORDS = [
@@ -70,7 +70,7 @@ export const CLAUSE_KEYWORDS = [
   "NULL",
   "TRUE",
   "FALSE",
-];
+]
 
 /**
  * Common PostgreSQL functions grouped by category.
@@ -164,13 +164,7 @@ export const PG_FUNCTIONS = {
     "TO_JSON",
     "TO_JSONB",
   ],
-  type_cast: [
-    "CAST",
-    "COALESCE",
-    "NULLIF",
-    "GREATEST",
-    "LEAST",
-  ],
+  type_cast: ["CAST", "COALESCE", "NULLIF", "GREATEST", "LEAST"],
   misc: [
     "GEN_RANDOM_UUID",
     "NEXTVAL",
@@ -181,14 +175,14 @@ export const PG_FUNCTIONS = {
     "UNNEST",
     "GENERATE_SERIES",
   ],
-};
+}
 
 /** Flat list of all function names for quick lookups. */
-export const ALL_FUNCTIONS: string[] = Object.values(PG_FUNCTIONS).flat();
+export const ALL_FUNCTIONS: string[] = Object.values(PG_FUNCTIONS).flat()
 
 /** Set of all SQL keywords (upper-cased) for the tokenizer. */
 export const SQL_KEYWORD_SET: Set<string> = new Set([
   ...STATEMENT_KEYWORDS,
   ...CLAUSE_KEYWORDS,
   ...ALL_FUNCTIONS,
-]);
+])

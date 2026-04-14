@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import QueryListItem from "./QueryListItem.vue";
-import type { SavedQuery } from "../../types";
+import QueryListItem from "./QueryListItem.vue"
+import type { SavedQuery } from "../../types"
 
 defineProps<{
-  queries: SavedQuery[];
-  activeQueryId: number | null;
-}>();
+  queries: SavedQuery[]
+  activeQueryId: number | null
+}>()
 
 defineEmits<{
-  hover: [id: number];
-  delete: [query: SavedQuery];
-  copy: [query: SavedQuery];
-}>();
+  hover: [id: number]
+  delete: [query: SavedQuery]
+  copy: [query: SavedQuery]
+}>()
 </script>
 
 <template>

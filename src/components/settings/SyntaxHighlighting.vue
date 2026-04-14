@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import Button from "../Button.vue";
-import SqlHighlighter from "../SqlHighlighter.vue";
-import ColorPicker from "../ColorPicker.vue";
-import { useSettingsStore } from "../../stores/settingsStore";
-import type { SyntaxColors } from "../../stores/settingsStore";
+import { computed } from "vue"
+import Button from "../Button.vue"
+import SqlHighlighter from "../SqlHighlighter.vue"
+import ColorPicker from "../ColorPicker.vue"
+import { useSettingsStore } from "../../stores/settingsStore"
+import type { SyntaxColors } from "../../stores/settingsStore"
 
 const {
   syntaxColors,
   defaultSyntaxColors,
   updateSyntaxColor,
   resetSyntaxColors,
-} = useSettingsStore();
+} = useSettingsStore()
 
 const SAMPLE_SQL = `SELECT u.id, u.name, COUNT(o.id) AS order_count
 FROM users u
@@ -21,12 +21,12 @@ WHERE u.active = true
 GROUP BY u.id, u.name
 HAVING COUNT(o.id) > 5
 ORDER BY order_count DESC
-LIMIT 10;`;
+LIMIT 10;`
 
 interface TokenColorEntry {
-  key: keyof SyntaxColors;
-  label: string;
-  example: string;
+  key: keyof SyntaxColors
+  label: string
+  example: string
 }
 
 const tokenEntries: TokenColorEntry[] = [
@@ -38,17 +38,17 @@ const tokenEntries: TokenColorEntry[] = [
   { key: "type", label: "Types", example: "INTEGER, TEXT" },
   { key: "punct", label: "Punctuation", example: "( ) , ; ." },
   { key: "ident", label: "Identifiers", example: "table_name, col" },
-];
+]
 
 const isDefault = computed(() => {
   return tokenEntries.every(
     (entry) =>
-      syntaxColors.value[entry.key] === defaultSyntaxColors.value[entry.key]
-  );
-});
+      syntaxColors.value[entry.key] === defaultSyntaxColors.value[entry.key],
+  )
+})
 
 function handleColorChange(key: keyof SyntaxColors, color: string) {
-  updateSyntaxColor(key, color);
+  updateSyntaxColor(key, color)
 }
 </script>
 
@@ -70,12 +70,7 @@ function handleColorChange(key: keyof SyntaxColors, color: string) {
     </div>
 
     <!-- Color entries grid -->
-    <div
-      rounded-xl
-      border
-      border-gray-800
-      bg="gray-900/30"
-    >
+    <div rounded-xl border border-gray-800 bg="gray-900/30">
       <div
         v-for="(entry, idx) in tokenEntries"
         :key="entry.key"
@@ -123,13 +118,7 @@ function handleColorChange(key: keyof SyntaxColors, color: string) {
         <div i-lucide-eye text-gray-500></div>
         <span text-sm text-gray-500 font-medium>Live Preview</span>
       </div>
-      <div
-        rounded-xl
-        border
-        border-gray-800
-        bg="[#0d1117]"
-        overflow-hidden
-      >
+      <div rounded-xl border border-gray-800 bg="[#0d1117]" overflow-hidden>
         <div
           px-3
           py-2
@@ -143,10 +132,7 @@ function handleColorChange(key: keyof SyntaxColors, color: string) {
           <div i-lucide-code-2 color-gray text-sm></div>
           <span text-xs text-gray-600>preview.sql</span>
         </div>
-        <SqlHighlighter
-          :sql="SAMPLE_SQL"
-          class="preview-code"
-        />
+        <SqlHighlighter :sql="SAMPLE_SQL" class="preview-code" />
       </div>
     </div>
   </section>

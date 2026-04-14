@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import SqlHighlighter from "../SqlHighlighter.vue";
-import { formatDateTime } from "../../helpers/dateHelpers";
-import type { HistoryQuery } from "../../types";
+import SqlHighlighter from "../SqlHighlighter.vue"
+import { formatDateTime } from "../../helpers/dateHelpers"
+import type { HistoryQuery } from "../../types"
 
 defineProps<{
-  query: HistoryQuery | undefined;
-}>();
+  query: HistoryQuery | undefined
+}>()
 </script>
 
 <template>
@@ -26,9 +26,7 @@ defineProps<{
       >
         <div i-lucide-code-2 text-sm></div>
         <span font-medium text-gray-400>{{
-          query
-            ? formatDateTime(query.timestamp)
-            : "Hover a query to preview"
+          query ? formatDateTime(query.timestamp) : "Hover a query to preview"
         }}</span>
       </div>
 

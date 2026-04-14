@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed } from "vue"
 
 const props = withDefaults(
   defineProps<{
-    icon?: string;
-    variant?: "primary" | "secondary";
+    icon?: string
+    variant?: "primary" | "secondary"
   }>(),
   {
     variant: "secondary",
   },
-);
+)
 
 const buttonClass = computed(() => {
   if (props.variant === "primary") {
-    return "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20";
+    return "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
   }
-  return "bg-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5";
-});
+  return "bg-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5"
+})
 </script>
 
 <template>

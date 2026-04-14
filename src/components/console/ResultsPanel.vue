@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import ResultsFallback from "./ResultsFallback.vue";
-import ResultsHeader from "./ResultsHeader.vue";
-import ResultsTable from "./ResultsTable.vue";
-import type { QueryResult, PgError } from "../../types";
+import ResultsFallback from "./ResultsFallback.vue"
+import ResultsHeader from "./ResultsHeader.vue"
+import ResultsTable from "./ResultsTable.vue"
+import type { QueryResult, PgError } from "../../types"
 
 defineProps<{
-  results: QueryResult | null;
-  error: PgError | null;
-  isExecuting: boolean;
-}>();
+  results: QueryResult | null
+  error: PgError | null
+  isExecuting: boolean
+}>()
 
 defineEmits<{
-  "copy-cell": [e: MouseEvent, value: unknown];
-}>();
+  "copy-cell": [e: MouseEvent, value: unknown]
+}>()
 </script>
 
 <template>

@@ -1,64 +1,85 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch } from "vue"
 
 const props = defineProps<{
-  modelValue: string;
-}>();
+  modelValue: string
+}>()
 
 const emit = defineEmits<{
-  "update:modelValue": [value: string];
-}>();
+  "update:modelValue": [value: string]
+}>()
 
-const isOpen = ref(false);
-const pickerRef = ref<HTMLElement | null>(null);
-const hexInput = ref(props.modelValue);
+const isOpen = ref(false)
+const pickerRef = ref<HTMLElement | null>(null)
+const hexInput = ref(props.modelValue)
 
 watch(
   () => props.modelValue,
-  (v) => (hexInput.value = v)
-);
+  (v) => (hexInput.value = v),
+)
 
 // Preset palette
 const presets = [
-  "#ef4444", "#f97316", "#f59e0b", "#eab308",
-  "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-  "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1",
-  "#8b5cf6", "#a855f7", "#c084fc", "#d946ef",
-  "#ec4899", "#f43f5e", "#fb7185", "#fda4af",
-  "#fbbf24", "#34d399", "#60a5fa", "#9ca3af",
-  "#6ee7b7", "#ffa348", "#d1d5db", "#f3f4f6",
-];
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#c084fc",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
+  "#fb7185",
+  "#fda4af",
+  "#fbbf24",
+  "#34d399",
+  "#60a5fa",
+  "#9ca3af",
+  "#6ee7b7",
+  "#ffa348",
+  "#d1d5db",
+  "#f3f4f6",
+]
 
 function selectPreset(color: string) {
-  hexInput.value = color;
-  emit("update:modelValue", color);
+  hexInput.value = color
+  emit("update:modelValue", color)
 }
 
 function handleHexInput() {
-  const v = hexInput.value.trim();
+  const v = hexInput.value.trim()
   if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-    emit("update:modelValue", v);
+    emit("update:modelValue", v)
   }
 }
 
 function handleNativeInput(e: Event) {
-  const val = (e.target as HTMLInputElement).value;
-  hexInput.value = val;
-  emit("update:modelValue", val);
+  const val = (e.target as HTMLInputElement).value
+  hexInput.value = val
+  emit("update:modelValue", val)
 }
 
 function togglePicker() {
-  isOpen.value = !isOpen.value;
+  isOpen.value = !isOpen.value
 }
 
 function onClickOutside(e: MouseEvent) {
   if (pickerRef.value && !pickerRef.value.contains(e.target as Node)) {
-    isOpen.value = false;
+    isOpen.value = false
   }
 }
 
-onMounted(() => document.addEventListener("mousedown", onClickOutside));
-onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside));
+onMounted(() => document.addEventListener("mousedown", onClickOutside))
+onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 </script>
 
 <template>
@@ -77,10 +98,7 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 
     <!-- Popup -->
     <Transition name="picker-pop">
-      <div
-        v-if="isOpen"
-        class="picker-popup"
-      >
+      <div v-if="isOpen" class="picker-popup">
         <!-- Preset grid -->
         <div class="picker-presets">
           <button
@@ -96,7 +114,7 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
               i-lucide-check
               text-white
               text-xs
-              style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6))"
+              style="filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6))"
             ></div>
           </button>
         </div>
@@ -146,7 +164,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
   outline: none;
   padding: 0;
 }
@@ -182,7 +202,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
   border-radius: 6px;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.1s ease, border-color 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    border-color 0.1s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,7 +264,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 /* Transition */
 .picker-pop-enter-active,
 .picker-pop-leave-active {
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 .picker-pop-enter-from,
 .picker-pop-leave-to {

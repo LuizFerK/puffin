@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from "vue-router";
-import { version } from "../../package.json";
-import Button from "./Button.vue";
+import { useRoute, useRouter } from "vue-router"
+import { version } from "../../package.json"
+import Button from "./Button.vue"
 
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
 
 const navItems = [
   { path: "/connections", label: "Connections", icon: "i-lucide-database" },
   { path: "/", label: "Query Console", icon: "i-lucide-terminal" },
   { path: "/collection", label: "Collection", icon: "i-lucide-bookmark" },
   { path: "/history", label: "History", icon: "i-lucide-history" },
-];
+]
 
 function navigate(path: string) {
-  router.push(path);
+  router.push(path)
 }
 </script>
 

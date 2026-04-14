@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { QueryResult, PgError } from "../../types";
-import ResultsHeaderCopyToClipboard from "./ResultsHeaderCopyToClipboard.vue";
+import type { QueryResult, PgError } from "../../types"
+import ResultsHeaderCopyToClipboard from "./ResultsHeaderCopyToClipboard.vue"
 
 defineProps<{
-  results: QueryResult | null;
-  error: PgError | null;
-  isExecuting: boolean;
-}>();
+  results: QueryResult | null
+  error: PgError | null
+  isExecuting: boolean
+}>()
 </script>
 
 <template>

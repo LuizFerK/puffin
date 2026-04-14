@@ -1,71 +1,81 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import Button from "../components/Button.vue";
-import Modal from "../components/Modal.vue";
-import QueryEditor from "../components/console/QueryEditor.vue";
-import ResultsPanel from "../components/console/ResultsPanel.vue";
-import { useQueryStore } from "../stores/queryStore";
-import { useConnectionStore } from "../stores/connectionStore";
-import type { ComponentPublicInstance } from "vue";
-import type { QueryResult, PgError } from "../types";
+import { ref, watch, onMounted, onUnmounted } from "vue"
+import { invoke } from "@tauri-apps/api/core"
+import Button from "../components/Button.vue"
+import Modal from "../components/Modal.vue"
+import QueryEditor from "../components/console/QueryEditor.vue"
+import ResultsPanel from "../components/console/ResultsPanel.vue"
+import { useQueryStore } from "../stores/queryStore"
+import { useConnectionStore } from "../stores/connectionStore"
+import type { ComponentPublicInstance } from "vue"
+import type { QueryResult, PgError } from "../types"
 
-const { consoleState, loadQueries, addQuery, addHistoryQuery, updateConsoleState } =
-  useQueryStore();
-const { activeConnection, loadConnections } = useConnectionStore();
+const {
+  consoleState,
+  loadQueries,
+  addQuery,
+  addHistoryQuery,
+  updateConsoleState,
+} = useQueryStore()
+const { activeConnection, loadConnections } = useConnectionStore()
 
 onMounted(async () => {
-  await loadConnections();
-  await loadQueries();
-  queryText.value = consoleState.value.queryText || "";
-  editorHeight.value = Math.round((window.innerHeight - 60) / 2);
-  window.addEventListener("resize", onResize);
-});
+  await loadConnections()
+  await loadQueries()
+  queryText.value = consoleState.value.queryText || ""
+  editorHeight.value = Math.round((window.innerHeight - 60) / 2)
+  window.addEventListener("resize", onResize)
+})
 
 onUnmounted(() => {
-  window.removeEventListener("resize", onResize);
-});
+  window.removeEventListener("resize", onResize)
+})
 
 function onResize() {
-  editorHeight.value = Math.round((window.innerHeight - 60) / 2);
+  editorHeight.value = Math.round((window.innerHeight - 60) / 2)
 }
 
-const editorHeight = ref(300);
-const isDragging = ref(false);
-const queryText = ref("");
-const editorRef = ref<ComponentPublicInstance<{ getQueryAtCursor: () => string | null }> | null>(null);
+const editorHeight = ref(300)
+const isDragging = ref(false)
+const queryText = ref("")
+const editorRef = ref<ComponentPublicInstance<{
+  getQueryAtCursor: () => string | null
+}> | null>(null)
 
 function executeFromButton() {
-  const query = editorRef.value?.getQueryAtCursor?.();
-  executeQuery(query ?? undefined);
+  const query = editorRef.value?.getQueryAtCursor?.()
+  executeQuery(query ?? undefined)
 }
 
-const results = ref<QueryResult | null>(null);
-const queryError = ref<PgError | null>(null);
-const isExecuting = ref(false);
+const results = ref<QueryResult | null>(null)
+const queryError = ref<PgError | null>(null)
+const isExecuting = ref(false)
 
 async function executeQuery(sql?: string) {
-  const queryToRun = sql || queryText.value.trim();
-  if (!queryToRun) return;
+  const queryToRun = sql || queryText.value.trim()
+  if (!queryToRun) return
   if (!activeConnection.value) {
-    queryError.value = { detail: "No active connection. Select a connection first.", hint: null };
-    results.value = null;
-    return;
+    queryError.value = {
+      detail: "No active connection. Select a connection first.",
+      hint: null,
+    }
+    results.value = null
+    return
   }
 
-  isExecuting.value = true;
-  queryError.value = null;
-  results.value = null;
+  isExecuting.value = true
+  queryError.value = null
+  results.value = null
 
   // Record to history
   await addHistoryQuery({
     connectionName: activeConnection.value?.name ?? "No connection",
     timestamp: Date.now(),
     code: queryToRun,
-  });
+  })
 
   try {
-    const conn = activeConnection.value;
+    const conn = activeConnection.value
     const result = await invoke<QueryResult>("execute_query", {
       connection: {
         host: conn.host,
@@ -75,87 +85,87 @@ async function executeQuery(sql?: string) {
         password: conn.password || "",
       },
       sql: queryToRun,
-    });
-    results.value = result;
+    })
+    results.value = result
   } catch (e: any) {
     const error = e as PgError
-    queryError.value = { 
-      detail: error.detail, 
-      hint: error.hint
-    };
-    results.value = null;
+    queryError.value = {
+      detail: error.detail,
+      hint: error.hint,
+    }
+    results.value = null
   } finally {
-    isExecuting.value = false;
+    isExecuting.value = false
   }
 }
 
 // Debounced persist of console state
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function debouncedSave() {
-  if (saveTimer) clearTimeout(saveTimer);
+  if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     updateConsoleState({
       queryText: queryText.value,
-    });
-  }, 500);
+    })
+  }, 500)
 }
 
-watch(queryText, debouncedSave);
-watch(editorHeight, debouncedSave);
+watch(queryText, debouncedSave)
+watch(editorHeight, debouncedSave)
 
 const startDrag = () => {
-  isDragging.value = true;
-  document.addEventListener("mousemove", onDrag);
-  document.addEventListener("mouseup", stopDrag);
-  document.body.style.userSelect = "none";
-  document.body.style.cursor = "row-resize";
-};
+  isDragging.value = true
+  document.addEventListener("mousemove", onDrag)
+  document.addEventListener("mouseup", stopDrag)
+  document.body.style.userSelect = "none"
+  document.body.style.cursor = "row-resize"
+}
 
 const onDrag = (e: MouseEvent) => {
-  if (!isDragging.value) return;
-  const newHeight = e.clientY - 48;
+  if (!isDragging.value) return
+  const newHeight = e.clientY - 48
   if (newHeight > 100 && newHeight < window.innerHeight - 150) {
-    editorHeight.value = newHeight;
+    editorHeight.value = newHeight
   }
-};
+}
 
 const stopDrag = () => {
-  isDragging.value = false;
-  document.removeEventListener("mousemove", onDrag);
-  document.removeEventListener("mouseup", stopDrag);
-  document.body.style.userSelect = "";
-  document.body.style.cursor = "";
-};
+  isDragging.value = false
+  document.removeEventListener("mousemove", onDrag)
+  document.removeEventListener("mouseup", stopDrag)
+  document.body.style.userSelect = ""
+  document.body.style.cursor = ""
+}
 
 // Save to collection
-const isSaveDialogOpen = ref(false);
-const saveName = ref("");
+const isSaveDialogOpen = ref(false)
+const saveName = ref("")
 
 async function saveToCollection() {
-  if (!saveName.value.trim()) return;
+  if (!saveName.value.trim()) return
   await addQuery({
     name: saveName.value.trim(),
     connectionName: activeConnection.value?.name ?? "No connection",
     date: new Date().toISOString().split("T")[0],
     code: queryText.value,
-  });
-  saveName.value = "";
-  isSaveDialogOpen.value = false;
+  })
+  saveName.value = ""
+  isSaveDialogOpen.value = false
 }
 
 // Copy cell to clipboard
-const copyTooltip = ref({ visible: false, x: 0, y: 0 });
-let copyTimer: ReturnType<typeof setTimeout> | null = null;
+const copyTooltip = ref({ visible: false, x: 0, y: 0 })
+let copyTimer: ReturnType<typeof setTimeout> | null = null
 
 function copyCell(e: MouseEvent, value: unknown) {
-  const text = value === null ? "NULL" : String(value);
-  navigator.clipboard.writeText(text);
-  copyTooltip.value = { visible: true, x: e.clientX, y: e.clientY - 10 };
-  if (copyTimer) clearTimeout(copyTimer);
+  const text = value === null ? "NULL" : String(value)
+  navigator.clipboard.writeText(text)
+  copyTooltip.value = { visible: true, x: e.clientX, y: e.clientY - 10 }
+  if (copyTimer) clearTimeout(copyTimer)
   copyTimer = setTimeout(() => {
-    copyTooltip.value.visible = false;
-  }, 1500);
+    copyTooltip.value.visible = false
+  }, 1500)
 }
 </script>
 
@@ -228,7 +238,12 @@ function copyCell(e: MouseEvent, value: unknown) {
     </Modal>
 
     <!-- Editor Wrapper -->
-    <QueryEditor ref="editorRef" v-model="queryText" :height="editorHeight" @execute="(q: string) => executeQuery(q)" />
+    <QueryEditor
+      ref="editorRef"
+      v-model="queryText"
+      :height="editorHeight"
+      @execute="(q: string) => executeQuery(q)"
+    />
 
     <!-- Resizer -->
     <div

@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import type { QueryResult } from "../../types";
-import Button from "../Button.vue";
-import Checkbox from "../Checkbox.vue";
-import Modal from "../Modal.vue";
+import { ref } from "vue"
+import type { QueryResult } from "../../types"
+import Button from "../Button.vue"
+import Checkbox from "../Checkbox.vue"
+import Modal from "../Modal.vue"
 
 const props = defineProps<{
-  results: QueryResult;
-}>();
+  results: QueryResult
+}>()
 
-const showCopyModal = ref(false);
-const removeIndex = ref(false);
-const removeColumnNames = ref(false);
-const copyFormat = ref<"csv" | "pretty">("pretty");
-const copied = ref(false);
+const showCopyModal = ref(false)
+const removeIndex = ref(false)
+const removeColumnNames = ref(false)
+const copyFormat = ref<"csv" | "pretty">("pretty")
+const copied = ref(false)
 
 function formatPretty(
   columns: string[],
@@ -21,40 +21,41 @@ function formatPretty(
   includeIndex: boolean,
   includeHeaders: boolean,
 ): string {
-  const allCols: string[] = [];
-  if (includeIndex) allCols.push("#");
-  allCols.push(...columns);
+  const allCols: string[] = []
+  if (includeIndex) allCols.push("#")
+  allCols.push(...columns)
 
   const allRows = rows.map((row, i) => {
-    const cells: string[] = [];
-    if (includeIndex) cells.push(String(i + 1));
-    cells.push(...row.map((c) => (c === null ? "NULL" : String(c))));
-    return cells;
-  });
+    const cells: string[] = []
+    if (includeIndex) cells.push(String(i + 1))
+    cells.push(...row.map((c) => (c === null ? "NULL" : String(c))))
+    return cells
+  })
 
   const widths = allCols.map((col, i) => {
-    const headerLen = includeHeaders ? col.length : 0;
+    const headerLen = includeHeaders ? col.length : 0
     const maxDataLen = allRows.reduce(
       (max, row) => Math.max(max, (row[i] ?? "").length),
       0,
-    );
-    return Math.max(headerLen, maxDataLen);
-  });
+    )
+    return Math.max(headerLen, maxDataLen)
+  })
 
-  const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - s.length));
-  const separator = widths.map((w) => "-".repeat(w)).join("-+-");
+  const pad = (s: string, w: number) =>
+    s + " ".repeat(Math.max(0, w - s.length))
+  const separator = widths.map((w) => "-".repeat(w)).join("-+-")
   const formatRow = (cells: string[]) =>
-    cells.map((c, i) => pad(c, widths[i])).join(" | ");
+    cells.map((c, i) => pad(c, widths[i])).join(" | ")
 
-  const lines: string[] = [];
+  const lines: string[] = []
   if (includeHeaders) {
-    lines.push(formatRow(allCols));
-    lines.push(separator);
+    lines.push(formatRow(allCols))
+    lines.push(separator)
   }
   for (const row of allRows) {
-    lines.push(formatRow(row));
+    lines.push(formatRow(row))
   }
-  return "```json\n" + lines.join("\n") + "\n```";
+  return "```json\n" + lines.join("\n") + "\n```"
 }
 
 function formatCsv(
@@ -65,51 +66,51 @@ function formatCsv(
 ): string {
   const escapeCsv = (val: string) => {
     if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-      return `"${val.replace(/"/g, '""')}"`;
+      return `"${val.replace(/"/g, '""')}"`
     }
-    return val;
-  };
+    return val
+  }
 
-  const lines: string[] = [];
+  const lines: string[] = []
 
   if (includeHeaders) {
-    const headerCells: string[] = [];
-    if (includeIndex) headerCells.push("#");
-    headerCells.push(...columns);
-    lines.push(headerCells.map(escapeCsv).join(","));
+    const headerCells: string[] = []
+    if (includeIndex) headerCells.push("#")
+    headerCells.push(...columns)
+    lines.push(headerCells.map(escapeCsv).join(","))
   }
 
   for (let i = 0; i < rows.length; i++) {
-    const cells: string[] = [];
-    if (includeIndex) cells.push(String(i + 1));
-    cells.push(...rows[i].map((c) => (c === null ? "NULL" : String(c))));
-    lines.push(cells.map(escapeCsv).join(","));
+    const cells: string[] = []
+    if (includeIndex) cells.push(String(i + 1))
+    cells.push(...rows[i].map((c) => (c === null ? "NULL" : String(c))))
+    lines.push(cells.map(escapeCsv).join(","))
   }
 
-  return lines.join("\n");
+  return lines.join("\n")
 }
 
 function copyToClipboard() {
-  const { columns, rows } = props.results;
-  const includeIndex = !removeIndex.value;
-  const includeHeaders = !removeColumnNames.value;
+  const { columns, rows } = props.results
+  const includeIndex = !removeIndex.value
+  const includeHeaders = !removeColumnNames.value
 
   const text =
     copyFormat.value === "csv"
       ? formatCsv(columns, rows, includeIndex, includeHeaders)
-      : formatPretty(columns, rows, includeIndex, includeHeaders);
+      : formatPretty(columns, rows, includeIndex, includeHeaders)
 
-  navigator.clipboard.writeText(text);
-  copied.value = true;
+  navigator.clipboard.writeText(text)
+  copied.value = true
   setTimeout(() => {
-    copied.value = false;
-    showCopyModal.value = false;
-  }, 500);
+    copied.value = false
+    showCopyModal.value = false
+  }, 500)
 }
 
 function open() {
-  copied.value = false;
-  showCopyModal.value = true;
+  copied.value = false
+  showCopyModal.value = true
 }
 </script>
 

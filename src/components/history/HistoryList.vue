@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import Button from "../Button.vue";
-import HistoryListItem from "./HistoryListItem.vue";
-import type { HistoryQuery } from "../../types";
+import Button from "../Button.vue"
+import HistoryListItem from "./HistoryListItem.vue"
+import type { HistoryQuery } from "../../types"
 
 defineProps<{
-  queries: HistoryQuery[];
-  activeQueryId: number | null;
-}>();
+  queries: HistoryQuery[]
+  activeQueryId: number | null
+}>()
 
 defineEmits<{
-  hover: [id: number];
-  delete: [query: HistoryQuery];
-  copy: [query: HistoryQuery];
-  clearAll: [];
-}>();
+  hover: [id: number]
+  delete: [query: HistoryQuery]
+  copy: [query: HistoryQuery]
+  clearAll: []
+}>()
 </script>
 
 <template>

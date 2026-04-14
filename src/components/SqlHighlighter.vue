@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useSettingsStore } from "../stores/settingsStore";
+import { computed } from "vue"
+import { useSettingsStore } from "../stores/settingsStore"
 
 const props = defineProps<{
-  sql: string;
-  class?: string;
-}>();
+  sql: string
+  class?: string
+}>()
 
-const { syntaxColors } = useSettingsStore();
+const { syntaxColors } = useSettingsStore()
 
 const KEYWORDS = new Set([
   "select",
@@ -80,7 +80,7 @@ const KEYWORDS = new Set([
   "unique",
   "check",
   "cascade",
-]);
+])
 
 const FUNCTIONS = new Set([
   "count",
@@ -106,7 +106,7 @@ const FUNCTIONS = new Set([
   "rank",
   "dense_rank",
   "gen_random_uuid",
-]);
+])
 
 const TYPES = new Set([
   "int",
@@ -131,93 +131,93 @@ const TYPES = new Set([
   "real",
   "float",
   "double",
-]);
+])
 
 function tokenize(sql: string) {
-  const tokens: { type: string; value: string }[] = [];
-  let i = 0;
+  const tokens: { type: string; value: string }[] = []
+  let i = 0
 
   while (i < sql.length) {
     if (/\s/.test(sql[i])) {
-      let start = i;
-      while (i < sql.length && /\s/.test(sql[i])) i++;
-      tokens.push({ type: "ws", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      while (i < sql.length && /\s/.test(sql[i])) i++
+      tokens.push({ type: "ws", value: sql.slice(start, i) })
+      continue
     }
 
     if (sql[i] === "-" && sql[i + 1] === "-") {
-      let start = i;
-      while (i < sql.length && sql[i] !== "\n") i++;
-      tokens.push({ type: "comment", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      while (i < sql.length && sql[i] !== "\n") i++
+      tokens.push({ type: "comment", value: sql.slice(start, i) })
+      continue
     }
 
     if (sql[i] === "/" && sql[i + 1] === "*") {
-      let start = i;
-      i += 2;
-      while (i < sql.length - 1 && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
-      i += 2;
-      tokens.push({ type: "comment", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      i += 2
+      while (i < sql.length - 1 && !(sql[i] === "*" && sql[i + 1] === "/")) i++
+      i += 2
+      tokens.push({ type: "comment", value: sql.slice(start, i) })
+      continue
     }
 
     if (sql[i] === "'") {
-      let start = i;
-      i++;
-      while (i < sql.length && sql[i] !== "'") i++;
-      if (i < sql.length) i++;
-      tokens.push({ type: "string", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      i++
+      while (i < sql.length && sql[i] !== "'") i++
+      if (i < sql.length) i++
+      tokens.push({ type: "string", value: sql.slice(start, i) })
+      continue
     }
 
     if (sql[i] === '"') {
-      let start = i;
-      i++;
-      while (i < sql.length && sql[i] !== '"') i++;
-      if (i < sql.length) i++;
-      tokens.push({ type: "string", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      i++
+      while (i < sql.length && sql[i] !== '"') i++
+      if (i < sql.length) i++
+      tokens.push({ type: "string", value: sql.slice(start, i) })
+      continue
     }
 
     if (/\d/.test(sql[i])) {
-      let start = i;
-      while (i < sql.length && /[\d.]/.test(sql[i])) i++;
-      tokens.push({ type: "number", value: sql.slice(start, i) });
-      continue;
+      let start = i
+      while (i < sql.length && /[\d.]/.test(sql[i])) i++
+      tokens.push({ type: "number", value: sql.slice(start, i) })
+      continue
     }
 
     if (/[a-zA-Z_]/.test(sql[i])) {
-      let start = i;
-      while (i < sql.length && /[a-zA-Z0-9_]/.test(sql[i])) i++;
-      const word = sql.slice(start, i);
-      const lower = word.toLowerCase();
-      if (KEYWORDS.has(lower)) tokens.push({ type: "keyword", value: word });
+      let start = i
+      while (i < sql.length && /[a-zA-Z0-9_]/.test(sql[i])) i++
+      const word = sql.slice(start, i)
+      const lower = word.toLowerCase()
+      if (KEYWORDS.has(lower)) tokens.push({ type: "keyword", value: word })
       else if (FUNCTIONS.has(lower))
-        tokens.push({ type: "function", value: word });
-      else if (TYPES.has(lower)) tokens.push({ type: "type", value: word });
-      else tokens.push({ type: "ident", value: word });
-      continue;
+        tokens.push({ type: "function", value: word })
+      else if (TYPES.has(lower)) tokens.push({ type: "type", value: word })
+      else tokens.push({ type: "ident", value: word })
+      continue
     }
 
-    tokens.push({ type: "punct", value: sql[i] });
-    i++;
+    tokens.push({ type: "punct", value: sql[i] })
+    i++
   }
 
-  return tokens;
+  return tokens
 }
 
 const colorMap = computed<Record<string, string>>(() => ({
   ...syntaxColors.value,
   ws: "transparent",
-}));
+}))
 
-const highlightedTokens = computed(() => tokenize(props.sql || ""));
+const highlightedTokens = computed(() => tokenize(props.sql || ""))
 
 function getTokenStyle(type: string) {
-  const color = colorMap.value[type] || colorMap.value.ident;
-  if (type === "comment") return { color, fontStyle: "italic" };
-  if (type === "keyword") return { color, fontWeight: 600 };
-  return { color };
+  const color = colorMap.value[type] || colorMap.value.ident
+  if (type === "comment") return { color, fontStyle: "italic" }
+  if (type === "keyword") return { color, fontWeight: 600 }
+  return { color }
 }
 </script>
 

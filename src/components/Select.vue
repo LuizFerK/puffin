@@ -1,45 +1,45 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue"
 
 interface Option {
-  value: string | number;
-  label: string;
+  value: string | number
+  label: string
 }
 
 const props = defineProps<{
-  modelValue: string | number;
-  options: Option[];
-}>();
+  modelValue: string | number
+  options: Option[]
+}>()
 
 const emit = defineEmits<{
-  "update:modelValue": [value: string | number];
-}>();
+  "update:modelValue": [value: string | number]
+}>()
 
-const isOpen = ref(false);
-const selectRef = ref<HTMLElement | null>(null);
+const isOpen = ref(false)
+const selectRef = ref<HTMLElement | null>(null)
 
 const selectedLabel = () => {
-  const opt = props.options.find((o) => o.value === props.modelValue);
-  return opt?.label ?? String(props.modelValue);
-};
+  const opt = props.options.find((o) => o.value === props.modelValue)
+  return opt?.label ?? String(props.modelValue)
+}
 
 function toggle() {
-  isOpen.value = !isOpen.value;
+  isOpen.value = !isOpen.value
 }
 
 function select(value: string | number) {
-  emit("update:modelValue", value);
-  isOpen.value = false;
+  emit("update:modelValue", value)
+  isOpen.value = false
 }
 
 function onClickOutside(e: MouseEvent) {
   if (selectRef.value && !selectRef.value.contains(e.target as Node)) {
-    isOpen.value = false;
+    isOpen.value = false
   }
 }
 
-onMounted(() => document.addEventListener("mousedown", onClickOutside));
-onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside));
+onMounted(() => document.addEventListener("mousedown", onClickOutside))
+onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 </script>
 
 <template>
@@ -63,10 +63,7 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 
     <!-- Dropdown -->
     <Transition name="dropdown">
-      <div
-        v-if="isOpen"
-        class="select-dropdown"
-      >
+      <div v-if="isOpen" class="select-dropdown">
         <button
           v-for="opt in options"
           :key="opt.value"
@@ -103,7 +100,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
   color: #d1d5db;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
   min-width: 100px;
   justify-content: space-between;
 }
@@ -146,7 +145,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
   color: #9ca3af;
   font-size: 13px;
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
   white-space: nowrap;
   outline: none;
 }
@@ -163,7 +164,9 @@ onBeforeUnmount(() => document.removeEventListener("mousedown", onClickOutside))
 /* Transition */
 .dropdown-enter-active,
 .dropdown-leave-active {
-  transition: opacity 0.12s ease, transform 0.12s ease;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
 }
 .dropdown-enter-from,
 .dropdown-leave-to {
