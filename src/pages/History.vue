@@ -6,18 +6,25 @@ import Modal from "../components/Modal.vue";
 import HistoryList from "../components/history/HistoryList.vue";
 import HistoryPreview from "../components/history/HistoryPreview.vue";
 import { useQueryStore } from "../stores/queryStore";
+import { useSettingsStore } from "../stores/settingsStore";
 import type { HistoryQuery } from "../types";
 
 const {
   historyQueries,
   loadQueries,
   removeHistoryQuery,
+  pruneHistory,
   clearHistory,
   updateConsoleState,
 } = useQueryStore();
+const { loadSettings } = useSettingsStore();
 const router = useRouter();
 
-onMounted(() => loadQueries());
+onMounted(async () => {
+  await loadSettings();
+  await loadQueries();
+  pruneHistory();
+});
 
 const activeQueryId = ref<number | null>(null);
 

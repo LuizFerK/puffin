@@ -3,6 +3,7 @@ import { load } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import type { SavedQuery, HistoryQuery, QueryConsoleState } from "../types";
 import { useConnectionStore } from "./connectionStore";
+import { useSettingsStore, RETENTION_MS } from "./settingsStore";
 
 export interface SchemaInfo {
   tables: Record<string, string[]>;
@@ -101,13 +102,32 @@ const nextHistoryId = computed(() => {
   return maxId + 1;
 });
 
-const MAX_HISTORY = 50;
+
+
+function pruneHistory() {
+  const { historyMaxCount, historyRetention } = useSettingsStore();
+  const maxCount = historyMaxCount.value;
+  const retentionMs = RETENTION_MS[historyRetention.value];
+
+  let pruned = historyQueries.value;
+
+  // Prune by retention period
+  if (retentionMs !== Infinity) {
+    const cutoff = Date.now() - retentionMs;
+    pruned = pruned.filter((q) => q.timestamp >= cutoff);
+  }
+
+  // Prune by count
+  if (pruned.length > maxCount) {
+    pruned = pruned.slice(0, maxCount);
+  }
+
+  historyQueries.value = pruned;
+}
 
 async function addHistoryQuery(query: Omit<HistoryQuery, "id">) {
   historyQueries.value.unshift({ id: nextHistoryId.value, ...query });
-  if (historyQueries.value.length > MAX_HISTORY) {
-    historyQueries.value = historyQueries.value.slice(0, MAX_HISTORY);
-  }
+  pruneHistory();
   await persist();
 }
 
@@ -138,6 +158,7 @@ export function useQueryStore() {
     removeQuery,
     addHistoryQuery,
     removeHistoryQuery,
+    pruneHistory,
     clearHistory,
     updateConsoleState,
     fetchSchema,

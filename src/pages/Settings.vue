@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import SyntaxHighlighting from "../components/settings/SyntaxHighlighting.vue";
+import HistorySettings from "../components/settings/HistorySettings.vue";
 import { useSettingsStore } from "../stores/settingsStore";
 
 const { loadSettings } = useSettingsStore();
@@ -10,9 +11,9 @@ onMounted(() => loadSettings());
 
 <template>
   <div h-full overflow-y-auto>
-    <div w="50%" m-auto mt-8 flex flex-col pb-12>
+    <div w="50%" m-auto mt-8 flex flex-col gap-8 pb-12>
       <!-- Header -->
-      <header mb-6 flex justify-between items-center gap-4>
+      <header flex justify-between items-center gap-4>
         <div>
           <h1
             text-xl
@@ -29,6 +30,7 @@ onMounted(() => loadSettings());
         </div>
       </header>
 
+      <HistorySettings />
       <SyntaxHighlighting />
     </div>
   </div>
