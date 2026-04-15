@@ -25,16 +25,21 @@ function handleShortcuts(e: KeyboardEvent) {
         e.preventDefault()
         router.push("/connections")
         break
-      case "f":
+      case "c":
         e.preventDefault()
         router.push("/collection")
         break
-      case "h":
+      case "x":
         e.preventDefault()
         router.push("/history")
         break
+      case "s":
+        e.preventDefault()
+        router.push("/settings")
+        break
       case "e":
         e.preventDefault()
+        // TODO: When enter the console page auto focus on the editor
         router.push("/")
         break
     }
@@ -48,7 +53,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleShortcuts))
 <template>
   <div flex h-screen bg-gray-950 overflow-hidden>
     <aside
-      :style="{ marginLeft: navbarVisible ? '0' : '-14rem' }"
+      :style="{ marginLeft: navbarVisible ? '0' : '-16rem' }"
       transition-all
       duration-200
       ease-in-out

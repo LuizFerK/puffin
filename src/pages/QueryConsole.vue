@@ -170,7 +170,7 @@ function copyCell(e: MouseEvent, value: unknown) {
 }
 
 async function onFormatQuery() {
-  queryText.value = await formatQuery()
+  queryText.value = await formatQuery(queryText.value)
 }
 </script>
 
@@ -253,6 +253,7 @@ async function onFormatQuery() {
       v-model="queryText"
       :height="editorHeight"
       @execute="(q: string) => executeQuery(q)"
+      @format-query="onFormatQuery"
     />
 
     <!-- Resizer -->

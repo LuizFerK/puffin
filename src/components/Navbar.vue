@@ -7,10 +7,10 @@ const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { path: "/connections", label: "Connections", icon: "i-lucide-database" },
-  { path: "/", label: "Query Console", icon: "i-lucide-terminal" },
-  { path: "/collection", label: "Collection", icon: "i-lucide-bookmark" },
-  { path: "/history", label: "History", icon: "i-lucide-history" },
+  { path: "/connections", label: "Connections", icon: "i-lucide-database", shortcut: 'D' },
+  { path: "/", label: "Console", icon: "i-lucide-terminal", shortcut: 'E' },
+  { path: "/collection", label: "Collection", icon: "i-lucide-bookmark", shortcut: 'C' },
+  { path: "/history", label: "History", icon: "i-lucide-history", shortcut: 'X' },
 ]
 
 function navigate(path: string) {
@@ -19,7 +19,7 @@ function navigate(path: string) {
 </script>
 
 <template>
-  <aside w-56 bg-gray-950 border-r border-gray-800 flex flex-col flex-shrink-0>
+  <aside w-64 bg-gray-950 border-r border-gray-800 flex flex-col flex-shrink-0>
     <!-- Logo area -->
     <div
       px-6
@@ -60,8 +60,16 @@ function navigate(path: string) {
         py-3
       >
         {{ item.label }}
+        <div flex-1></div>
+        <span text-xs text-gray-600 w-9>⌘ + {{ item.shortcut }}</span>
       </Button>
     </nav>
+
+    <div flex p-7>
+      <span text-xs text-gray-600>Toggle sidebar</span>
+      <div flex-1></div>
+      <span text-xs text-gray-600>Ctrl + B</span>
+    </div>
 
     <!-- Bottom Actions -->
     <div mt-auto p-4 border-t border-gray="800/50">
@@ -75,6 +83,8 @@ function navigate(path: string) {
         py-2
       >
         Settings
+        <div flex-1></div>
+        <span text-xs text-gray-600 w-9>⌘ + S</span>
       </Button>
     </div>
   </aside>

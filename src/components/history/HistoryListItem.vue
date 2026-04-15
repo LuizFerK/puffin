@@ -60,7 +60,7 @@ const preview = computed(() => {
       </div>
     </div>
 
-    <div opacity-0 group-hover:opacity-100 transition-opacity flex gap-1>
+    <div class="hidden! group-hover:flex!" transition-all flex gap-1>
       <Button
         icon="i-lucide-terminal"
         variant="secondary"

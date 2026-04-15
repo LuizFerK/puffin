@@ -20,6 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: string]
+  formatQuery: []
   execute: [query: string]
 }>()
 
@@ -89,6 +90,10 @@ onMounted(() => {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
     const query = querySelector?.getQueryAtCursor()
     if (query) emit("execute", query)
+  })
+
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+    emit('formatQuery')
   })
 })
 

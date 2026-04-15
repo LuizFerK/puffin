@@ -145,16 +145,13 @@ async function updateConsoleState(state: Partial<QueryConsoleState>) {
   await persist()
 }
 
-async function formatQuery() {
-  const fomattedQuery = format(consoleState.value.queryText, {
+async function formatQuery(queryText: string) {
+  const fomattedQuery = format(queryText, {
     language: 'postgresql',
     keywordCase: 'upper',
     dataTypeCase: 'upper',
     logicalOperatorNewline: 'after'
   })
-
-  consoleState.value = { ...consoleState.value, queryText: fomattedQuery }
-  await persist()
 
   return fomattedQuery
 }

@@ -41,6 +41,9 @@ const isAllDefault = computed(() => {
         </div>
       </header>
 
+      <!-- TODO: Shortcuts config -->
+      <!-- TODO: Format query config (on save, on favorite) -->
+      <!-- TODO: Formatter config (indentation, upper or lower cases) -->
       <HistorySettings />
       <SyntaxHighlighting />
 
