@@ -1,6 +1,7 @@
 import { ref, computed, watch } from "vue"
 import { load } from "@tauri-apps/plugin-store"
 import { invoke } from "@tauri-apps/api/core"
+import { format } from 'sql-formatter'
 import type { SavedQuery, HistoryQuery, QueryConsoleState } from "../types"
 import { useConnectionStore } from "./connectionStore"
 import { useSettingsStore, RETENTION_MS } from "./settingsStore"
@@ -144,6 +145,20 @@ async function updateConsoleState(state: Partial<QueryConsoleState>) {
   await persist()
 }
 
+async function formatQuery() {
+  const fomattedQuery = format(consoleState.value.queryText, {
+    language: 'postgresql',
+    keywordCase: 'upper',
+    dataTypeCase: 'upper',
+    logicalOperatorNewline: 'after'
+  })
+
+  consoleState.value = { ...consoleState.value, queryText: fomattedQuery }
+  await persist()
+
+  return fomattedQuery
+}
+
 export function useQueryStore() {
   return {
     savedQueries,
@@ -159,6 +174,7 @@ export function useQueryStore() {
     pruneHistory,
     clearHistory,
     updateConsoleState,
+    formatQuery,
     fetchSchema,
   }
 }

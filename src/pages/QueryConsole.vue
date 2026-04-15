@@ -16,6 +16,7 @@ const {
   addQuery,
   addHistoryQuery,
   updateConsoleState,
+  formatQuery,
 } = useQueryStore()
 const { activeConnection, loadConnections } = useConnectionStore()
 
@@ -167,6 +168,10 @@ function copyCell(e: MouseEvent, value: unknown) {
     copyTooltip.value.visible = false
   }, 1500)
 }
+
+async function onFormatQuery() {
+  queryText.value = await formatQuery()
+}
 </script>
 
 <template>
@@ -195,6 +200,11 @@ function copyCell(e: MouseEvent, value: unknown) {
         <span text-xs text-gray-600>Ctrl + Enter</span>
       </div>
       <div flex items-center text-gray-400>
+        <Button
+          icon="i-lucide-pencil-ruler"
+          variant="secondary"
+          @click="onFormatQuery"
+        />
         <Button
           icon="i-lucide-bookmark"
           variant="secondary"
