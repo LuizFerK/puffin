@@ -71,6 +71,7 @@ onUnmounted(() => document.removeEventListener("keydown", handleShortcuts))
 <style>
 body {
   margin: 0;
+  font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace;
 }
 button {
   border: none;
