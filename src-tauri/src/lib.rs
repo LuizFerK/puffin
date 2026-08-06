@@ -75,6 +75,24 @@ struct SchemaInfo {
     tables: HashMap<String, Vec<String>>,
 }
 
+fn format_naive_datetime(v: &chrono::NaiveDateTime) -> String {
+    use chrono::Timelike;
+    if v.nanosecond() % 1_000_000_000 != 0 {
+        v.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+    } else {
+        v.format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+}
+
+fn format_datetime_utc(v: &chrono::DateTime<chrono::Utc>) -> String {
+    use chrono::Timelike;
+    if v.nanosecond() % 1_000_000_000 != 0 {
+        v.format("%Y-%m-%d %H:%M:%S%.3f %Z").to_string()
+    } else {
+        v.format("%Y-%m-%d %H:%M:%S %Z").to_string()
+    }
+}
+
 fn pg_value_to_json(
     row: &tokio_postgres::Row,
     idx: usize,
@@ -103,7 +121,7 @@ fn pg_value_to_json(
         Type::TIMESTAMP => {
             if let Ok(val) = row.try_get::<_, Option<chrono::NaiveDateTime>>(idx) {
                 return match val {
-                    Some(v) => serde_json::Value::String(v.format("%Y-%m-%d %H:%M:%S").to_string()),
+                    Some(v) => serde_json::Value::String(format_naive_datetime(&v)),
                     None => serde_json::Value::Null,
                 };
             }
@@ -113,7 +131,7 @@ fn pg_value_to_json(
                 row.try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(idx)
             {
                 return match val {
-                    Some(v) => serde_json::Value::String(v.format("%Y-%m-%d %H:%M:%S %Z").to_string()),
+                    Some(v) => serde_json::Value::String(format_datetime_utc(&v)),
                     None => serde_json::Value::Null,
                 };
             }
