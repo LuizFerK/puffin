@@ -28,9 +28,11 @@ export interface QueryConsoleState {
   queryText: string
 }
 
+export type CellValue = string | number | boolean | null | (string | number | boolean | null)[]
+
 export interface QueryResult {
   columns: string[]
-  rows: (string | number | boolean | null)[][]
+  rows: CellValue[][]
   row_count: number
   elapsed_ms: number
 }

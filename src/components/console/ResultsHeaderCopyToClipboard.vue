@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue"
-import type { QueryResult } from "../../types"
+import type { QueryResult, CellValue } from "../../types"
+import { formatCellValue } from "../../helpers/cellHelpers"
 import Button from "../Button.vue"
 import Checkbox from "../Checkbox.vue"
 import Modal from "../Modal.vue"
@@ -17,7 +18,7 @@ const copied = ref(false)
 
 function formatPretty(
   columns: string[],
-  rows: (string | number | boolean | null)[][],
+  rows: CellValue[][],
   includeIndex: boolean,
   includeHeaders: boolean,
 ): string {
@@ -28,7 +29,7 @@ function formatPretty(
   const allRows = rows.map((row, i) => {
     const cells: string[] = []
     if (includeIndex) cells.push(String(i + 1))
-    cells.push(...row.map((c) => (c === null ? "NULL" : String(c))))
+    cells.push(...row.map(formatCellValue))
     return cells
   })
 
@@ -60,7 +61,7 @@ function formatPretty(
 
 function formatCsv(
   columns: string[],
-  rows: (string | number | boolean | null)[][],
+  rows: CellValue[][],
   includeIndex: boolean,
   includeHeaders: boolean,
 ): string {
@@ -83,7 +84,7 @@ function formatCsv(
   for (let i = 0; i < rows.length; i++) {
     const cells: string[] = []
     if (includeIndex) cells.push(String(i + 1))
-    cells.push(...rows[i].map((c) => (c === null ? "NULL" : String(c))))
+    cells.push(...rows[i].map(formatCellValue))
     lines.push(cells.map(escapeCsv).join(","))
   }
 

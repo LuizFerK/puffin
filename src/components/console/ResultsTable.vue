@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { CellValue } from "../../types"
+import { formatCellValue } from "../../helpers/cellHelpers"
+
 defineProps<{
   columns: string[]
-  rows: (string | number | boolean | null)[][]
+  rows: CellValue[][]
 }>()
 
 defineEmits<{
@@ -62,7 +65,7 @@ defineEmits<{
             :class="cell === null ? 'text-gray-600 italic' : 'text-gray-300'"
             @dblclick="$emit('copy-cell', $event, cell)"
           >
-            {{ cell === null ? "NULL" : cell }}
+            {{ formatCellValue(cell) }}
           </td>
         </tr>
       </tbody>

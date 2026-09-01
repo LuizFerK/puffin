@@ -7,7 +7,10 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
-use tokio_postgres::{types::Type, NoTls};
+use tokio_postgres::{
+    types::{Kind, Type},
+    NoTls,
+};
 use uuid::Uuid;
 
 // App-specific 32-byte key (AES-256). Machine-bound, not user-facing.
@@ -93,11 +96,92 @@ fn format_datetime_utc(v: &chrono::DateTime<chrono::Utc>) -> String {
     }
 }
 
+fn pg_array_to_json(
+    row: &tokio_postgres::Row,
+    idx: usize,
+    elem_type: &Type,
+    col_type: &Type,
+) -> serde_json::Value {
+    macro_rules! try_array_type {
+        ($rust_type:ty) => {
+            if let Ok(val) = row.try_get::<_, Option<Vec<Option<$rust_type>>>>(idx) {
+                return match val {
+                    Some(v) => serde_json::Value::Array(
+                        v.into_iter()
+                            .map(|e| match e {
+                                Some(x) => serde_json::to_value(x).unwrap_or(serde_json::Value::Null),
+                                None => serde_json::Value::Null,
+                            })
+                            .collect(),
+                    ),
+                    None => serde_json::Value::Null,
+                };
+            }
+        };
+    }
+
+    macro_rules! try_array_type_with {
+        ($rust_type:ty, $fmt:expr) => {
+            if let Ok(val) = row.try_get::<_, Option<Vec<Option<$rust_type>>>>(idx) {
+                return match val {
+                    Some(v) => serde_json::Value::Array(
+                        v.into_iter()
+                            .map(|e| match e {
+                                Some(x) => serde_json::Value::String($fmt(&x)),
+                                None => serde_json::Value::Null,
+                            })
+                            .collect(),
+                    ),
+                    None => serde_json::Value::Null,
+                };
+            }
+        };
+    }
+
+    match *elem_type {
+        Type::BOOL => try_array_type!(bool),
+        Type::INT2 => try_array_type!(i16),
+        Type::INT4 => try_array_type!(i32),
+        Type::INT8 => try_array_type!(i64),
+        Type::FLOAT4 => try_array_type!(f32),
+        Type::FLOAT8 => try_array_type!(f64),
+        Type::TEXT | Type::VARCHAR | Type::NAME | Type::BPCHAR => try_array_type!(String),
+        Type::JSON | Type::JSONB => try_array_type!(serde_json::Value),
+        Type::UUID => try_array_type_with!(Uuid, |v: &Uuid| v.to_string()),
+        Type::DATE => try_array_type_with!(chrono::NaiveDate, |v: &chrono::NaiveDate| v.to_string()),
+        Type::TIMESTAMP => {
+            try_array_type_with!(chrono::NaiveDateTime, format_naive_datetime)
+        }
+        Type::TIMESTAMPTZ => {
+            try_array_type_with!(chrono::DateTime<chrono::Utc>, format_datetime_utc)
+        }
+        _ => {}
+    }
+
+    // Fallback: try as an array of strings
+    if let Ok(val) = row.try_get::<_, Option<Vec<Option<String>>>>(idx) {
+        return match val {
+            Some(v) => serde_json::Value::Array(
+                v.into_iter()
+                    .map(|e| e.map_or(serde_json::Value::Null, serde_json::Value::String))
+                    .collect(),
+            ),
+            None => serde_json::Value::Null,
+        };
+    }
+
+    serde_json::Value::String(format!("<unsupported: {}>", col_type.name()))
+}
+
 fn pg_value_to_json(
     row: &tokio_postgres::Row,
     idx: usize,
     col_type: &Type,
 ) -> serde_json::Value {
+    if let Kind::Array(elem_type) = col_type.kind() {
+        return pg_array_to_json(row, idx, elem_type, col_type);
+    }
+
     // Try to extract the value based on the column type
     macro_rules! try_type {
         ($rust_type:ty) => {

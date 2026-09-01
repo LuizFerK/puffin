@@ -8,7 +8,8 @@ import ResultsPanel from "../components/console/ResultsPanel.vue"
 import { useQueryStore } from "../stores/queryStore"
 import { useConnectionStore } from "../stores/connectionStore"
 import type { ComponentPublicInstance } from "vue"
-import type { QueryResult, PgError } from "../types"
+import type { QueryResult, PgError, CellValue } from "../types"
+import { formatCellValue } from "../helpers/cellHelpers"
 
 const {
   consoleState,
@@ -160,7 +161,7 @@ const copyTooltip = ref({ visible: false, x: 0, y: 0 })
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 
 function copyCell(e: MouseEvent, value: unknown) {
-  const text = value === null ? "NULL" : String(value)
+  const text = formatCellValue(value as CellValue)
   navigator.clipboard.writeText(text)
   copyTooltip.value = { visible: true, x: e.clientX, y: e.clientY - 10 }
   if (copyTimer) clearTimeout(copyTimer)
