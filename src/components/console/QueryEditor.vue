@@ -67,6 +67,10 @@ onMounted(() => {
     language: "sql",
     automaticLayout: true,
     fontSize: 14,
+    // Only schema-aware suggestions; words from the buffer are mostly noise in SQL
+    wordBasedSuggestions: "off",
+    quickSuggestions: { other: true, comments: false, strings: false },
+    suggest: { showWords: false, insertMode: "replace" },
     fontFamily: "'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace",
     scrollBeyondLastLine: false,
   })
@@ -79,11 +83,7 @@ onMounted(() => {
   // Set up query selector (highlight + cursor detection)
   querySelector = useQuerySelector(editor)
 
-  // Set up schema-based completions
-  schemaCompletion = useSchemaCompletion(
-    schemaInfo,
-    querySelector.getSegmentAtCursor,
-  )
+  schemaCompletion = useSchemaCompletion(editor, schemaInfo)
 
   editor.onDidChangeModelContent(() => {
     emit("update:modelValue", editor?.getValue() || "")

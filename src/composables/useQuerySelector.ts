@@ -1,4 +1,5 @@
 import * as monaco from "monaco-editor"
+import { splitStatements } from "../sql/completion/statement"
 
 export interface QuerySegment {
   start: number
@@ -8,7 +9,8 @@ export interface QuerySegment {
 
 /**
  * Attaches query-selection behavior to a Monaco editor instance.
- * Splits the editor text into individual queries (delimited by `;` or blank lines),
+ * Splits the editor text into individual queries (delimited by `;` or blank lines
+ * outside strings and comments, the same split autocomplete uses),
  * highlights the active segment with decorations, and provides `getQueryAtCursor()`
  * to retrieve the query text under the cursor.
  *
@@ -33,45 +35,19 @@ export function useQuerySelector(editor: monaco.editor.IStandaloneCodeEditor) {
 
   // ── Segment parsing ─────────────────────────────────────────────────
 
-  function getSegments(): QuerySegment[] {
+  /** Statements around the cursor, trimmed to their first and last token. */
+  function getSegments(cursorOffset: number): QuerySegment[] {
     const model = editor.getModel()
     if (!model) return []
 
     const fullText = model.getValue()
-    const segments: QuerySegment[] = []
-    const regex = /;|\n\s*\n/g
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    while ((match = regex.exec(fullText)) !== null) {
-      pushSegment(fullText, lastIndex, match.index, segments)
-      lastIndex = match.index + match[0].length
-    }
-
-    pushSegment(fullText, lastIndex, fullText.length, segments)
-
-    return segments
-  }
-
-  /** Adds a segment with offsets trimmed to actual content boundaries. */
-  function pushSegment(
-    fullText: string,
-    rawStart: number,
-    rawEnd: number,
-    segments: QuerySegment[],
-  ) {
-    const slice = fullText.slice(rawStart, rawEnd)
-    const trimmed = slice.trim()
-    if (!trimmed) return
-
-    const leadingWs = slice.length - slice.trimStart().length
-    const trailingWs = slice.length - slice.trimEnd().length
-
-    segments.push({
-      start: rawStart + leadingWs,
-      end: rawEnd - trailingWs,
-      text: trimmed,
-    })
+    return splitStatements(fullText, cursorOffset)
+      .filter((s) => s.tokens.length > 0)
+      .map(({ tokens }) => {
+        const start = tokens[0].start
+        const end = tokens[tokens.length - 1].end
+        return { start, end, text: fullText.slice(start, end) }
+      })
   }
 
   function getSegmentAtCursor(): QuerySegment | null {
@@ -82,7 +58,7 @@ export function useQuerySelector(editor: monaco.editor.IStandaloneCodeEditor) {
     if (!position) return null
 
     const cursorOffset = model.getOffsetAt(position)
-    const segments = getSegments()
+    const segments = getSegments(cursorOffset)
 
     if (segments.length === 0) {
       const fullText = model.getValue()

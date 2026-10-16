@@ -10,6 +10,7 @@ import { useConnectionStore } from "../stores/connectionStore"
 import type { ComponentPublicInstance } from "vue"
 import type { QueryResult, PgError, CellValue } from "../types"
 import { formatCellValue } from "../helpers/cellHelpers"
+import { changesSchema } from "../sql/completion"
 
 const {
   consoleState,
@@ -18,6 +19,7 @@ const {
   addHistoryQuery,
   updateConsoleState,
   formatQuery,
+  fetchSchema,
 } = useQueryStore()
 const { activeConnection, loadConnections } = useConnectionStore()
 
@@ -89,6 +91,7 @@ async function executeQuery(sql?: string) {
       sql: queryToRun,
     })
     results.value = result
+    if (changesSchema(queryToRun)) fetchSchema()
   } catch (e: any) {
     const error = e as PgError
     queryError.value = {

@@ -5,7 +5,6 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Instant;
 use tokio_postgres::{
     types::{Kind, Type},
@@ -74,8 +73,60 @@ struct QueryResult {
 }
 
 #[derive(Serialize)]
+struct ColumnInfo {
+    name: String,
+    data_type: String,
+}
+
+#[derive(Serialize)]
+struct TableInfo {
+    schema: String,
+    name: String,
+    kind: String,
+    columns: Vec<ColumnInfo>,
+}
+
+#[derive(Serialize)]
 struct SchemaInfo {
-    tables: HashMap<String, Vec<String>>,
+    tables: Vec<TableInfo>,
+    search_path: Vec<String>,
+}
+
+fn relkind_name(relkind: &str) -> &'static str {
+    match relkind {
+        "v" => "view",
+        "m" => "materialized_view",
+        "f" => "foreign_table",
+        _ => "table",
+    }
+}
+
+fn group_tables(rows: Vec<tokio_postgres::Row>) -> Vec<TableInfo> {
+    let mut tables: Vec<TableInfo> = Vec::new();
+
+    for row in rows {
+        let schema: String = row.get("schema");
+        let name: String = row.get("name");
+        let column = ColumnInfo {
+            name: row.get("column_name"),
+            data_type: row.get("data_type"),
+        };
+
+        match tables.last_mut() {
+            Some(t) if t.schema == schema && t.name == name => t.columns.push(column),
+            _ => {
+                let relkind: String = row.get("relkind");
+                tables.push(TableInfo {
+                    schema,
+                    name,
+                    kind: relkind_name(&relkind).to_string(),
+                    columns: vec![column],
+                });
+            }
+        }
+    }
+
+    tables
 }
 
 fn format_naive_datetime(v: &chrono::NaiveDateTime) -> String {
@@ -272,8 +323,7 @@ fn format_pg_error(e: &tokio_postgres::Error) -> PgError {
     }
 }
 
-#[tauri::command]
-async fn execute_query(connection: ConnectionParams, sql: String) -> Result<QueryResult, PgError> {
+async fn connect(connection: ConnectionParams) -> Result<tokio_postgres::Client, PgError> {
     let password = connection.password.unwrap_or_default();
 
     let conn_string = format!(
@@ -291,6 +341,13 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
             eprintln!("Connection error: {}", e);
         }
     });
+
+    Ok(client)
+}
+
+#[tauri::command]
+async fn execute_query(connection: ConnectionParams, sql: String) -> Result<QueryResult, PgError> {
+    let client = connect(connection).await?;
 
     let start = Instant::now();
 
@@ -331,44 +388,37 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
 
 #[tauri::command]
 async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, PgError> {
-    let password = connection.password.unwrap_or_default();
+    let client = connect(connection).await?;
 
-    let conn_string = format!(
-        "host={} port={} dbname={} user={} password={}",
-        connection.host, connection.port, connection.database, connection.username, password
-    );
-
-    let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
-        .await
-        .map_err(|e| format_pg_error(&e))?;
-
-    tokio::spawn(async move {
-        if let Err(e) = conn.await {
-            eprintln!("Connection error: {}", e);
-        }
-    });
-
+    // pg_catalog instead of information_schema so materialized views are included
     let sql = "
-        SELECT table_name, column_name 
-        FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        ORDER BY table_name, ordinal_position;
+        SELECT n.nspname AS schema,
+               c.relname AS name,
+               c.relkind::text AS relkind,
+               a.attname AS column_name,
+               format_type(a.atttypid, a.atttypmod) AS data_type
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+        WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
+          AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+          AND n.nspname NOT LIKE 'pg_toast%'
+          AND n.nspname NOT LIKE 'pg_temp%'
+          AND has_schema_privilege(n.oid, 'USAGE')
+        ORDER BY n.nspname, c.relname, a.attnum;
     ";
 
-    let rows = client
-        .query(sql, &[])
-        .await
-        .map_err(|e| format_pg_error(&e))?;
+    // tokio-postgres pipelines both queries over the same connection
+    let (rows, path_row) = tokio::try_join!(
+        client.query(sql, &[]),
+        client.query_one("SELECT current_schemas(false)::text[] AS path", &[]),
+    )
+    .map_err(|e| format_pg_error(&e))?;
 
-    let mut tables: HashMap<String, Vec<String>> = HashMap::new();
-
-    for row in rows {
-        let table_name: String = row.get("table_name");
-        let column_name: String = row.get("column_name");
-        tables.entry(table_name).or_default().push(column_name);
-    }
-
-    Ok(SchemaInfo { tables })
+    Ok(SchemaInfo {
+        tables: group_tables(rows),
+        search_path: path_row.get("path"),
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

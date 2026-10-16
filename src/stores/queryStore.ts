@@ -1,14 +1,10 @@
-import { ref, computed, watch } from "vue"
+import { ref, shallowRef, computed, watch } from "vue"
 import { load } from "@tauri-apps/plugin-store"
 import { invoke } from "@tauri-apps/api/core"
 import { format } from 'sql-formatter'
-import type { SavedQuery, HistoryQuery, QueryConsoleState } from "../types"
+import type { SavedQuery, HistoryQuery, QueryConsoleState, DatabaseSchema } from "../types"
 import { useConnectionStore } from "./connectionStore"
 import { useSettingsStore, RETENTION_MS } from "./settingsStore"
-
-export interface SchemaInfo {
-  tables: Record<string, string[]>
-}
 
 const STORE_FILE = "queries.json"
 
@@ -18,7 +14,8 @@ const consoleState = ref<QueryConsoleState>({
   queryText: "",
 })
 const loaded = ref(false)
-const schemaInfo = ref<Record<string, string[]> | null>(null)
+// Shallow: the schema can hold thousands of tables and is only ever replaced whole
+const schemaInfo = shallowRef<DatabaseSchema | null>(null)
 
 let store: Awaited<ReturnType<typeof load>> | null = null
 
@@ -44,8 +41,7 @@ async function fetchSchema() {
     return
   }
   try {
-    const res: SchemaInfo = await invoke("fetch_schema", { connection: conn })
-    schemaInfo.value = res.tables
+    schemaInfo.value = await invoke<DatabaseSchema>("fetch_schema", { connection: conn })
   } catch (e) {
     console.error("Failed to fetch schema", e)
     schemaInfo.value = null

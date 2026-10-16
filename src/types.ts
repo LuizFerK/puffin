@@ -28,7 +28,13 @@ export interface QueryConsoleState {
   queryText: string
 }
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
 
 export type CellValue = JsonValue
 
@@ -42,4 +48,23 @@ export interface QueryResult {
 export interface PgError {
   detail: string
   hint: string | null
+}
+
+export interface ColumnInfo {
+  name: string
+  data_type: string
+}
+
+export type TableKind = "table" | "view" | "materialized_view" | "foreign_table"
+
+export interface TableInfo {
+  schema: string
+  name: string
+  kind: TableKind
+  columns: ColumnInfo[]
+}
+
+export interface DatabaseSchema {
+  tables: TableInfo[]
+  search_path: string[]
 }
