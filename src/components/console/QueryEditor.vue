@@ -67,11 +67,14 @@ onMounted(() => {
     language: "sql",
     automaticLayout: true,
     fontSize: 14,
-    fontFamily: "monospace",
+    fontFamily: "'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace",
     scrollBeyondLastLine: false,
   })
 
   applyTheme()
+
+  // Monaco caches glyph widths at creation; if the font finishes loading later the cursor drifts.
+  document.fonts.ready.then(() => monaco.editor.remeasureFonts())
 
   // Set up query selector (highlight + cursor detection)
   querySelector = useQuerySelector(editor)
