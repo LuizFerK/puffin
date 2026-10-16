@@ -28,7 +28,9 @@ export interface QueryConsoleState {
   queryText: string
 }
 
-export type CellValue = string | number | boolean | null | (string | number | boolean | null)[]
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+export type CellValue = JsonValue
 
 export interface QueryResult {
   columns: string[]
