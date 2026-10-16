@@ -3,12 +3,29 @@ import { ref, onMounted, onUnmounted } from "vue"
 import { useRouter } from "vue-router"
 import Navbar from "./components/Navbar.vue"
 import { useSettingsStore } from "./stores/settingsStore"
+import { zoomIn, zoomOut, resetZoom, toggleFullscreen } from "./helpers/windowHelpers"
 
 const router = useRouter()
 const navbarVisible = ref(true)
 const { loadSettings } = useSettingsStore()
 
 onMounted(() => loadSettings())
+
+function handleWindowShortcuts(e: KeyboardEvent) {
+  if (e.key === "F11") {
+    e.preventDefault()
+    toggleFullscreen()
+    return
+  }
+
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+
+  const action = { "=": zoomIn, "+": zoomIn, "-": zoomOut, "0": resetZoom }[e.key]
+  if (!action) return
+  e.preventDefault()
+  e.stopPropagation()
+  action()
+}
 
 function handleShortcuts(e: KeyboardEvent) {
   // Ctrl+B -> toggle navbar
@@ -46,8 +63,15 @@ function handleShortcuts(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => document.addEventListener("keydown", handleShortcuts))
-onUnmounted(() => document.removeEventListener("keydown", handleShortcuts))
+// Capture phase so Monaco can't swallow these before they reach us
+onMounted(() => {
+  document.addEventListener("keydown", handleWindowShortcuts, true)
+  document.addEventListener("keydown", handleShortcuts)
+})
+onUnmounted(() => {
+  document.removeEventListener("keydown", handleWindowShortcuts, true)
+  document.removeEventListener("keydown", handleShortcuts)
+})
 </script>
 
 <template>
