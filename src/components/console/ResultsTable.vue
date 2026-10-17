@@ -1,15 +1,35 @@
 <script setup lang="ts">
+import { computed, shallowRef } from "vue"
 import type { CellValue } from "../../types"
 import { formatCellValue } from "../../helpers/cellHelpers"
+import ContextMenu, { type ContextMenuItem } from "../ContextMenu.vue"
 
 defineProps<{
   columns: string[]
   rows: CellValue[][]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   "copy-cell": [e: MouseEvent, value: unknown]
 }>()
+
+const menu = shallowRef<{ event: MouseEvent; cell: CellValue } | null>(null)
+
+const menuItems = computed<ContextMenuItem[]>(() => {
+  const target = menu.value
+  if (!target) return []
+  return [
+    {
+      label: "Copy",
+      icon: "i-lucide-copy",
+      action: () => emit("copy-cell", target.event, target.cell),
+    },
+  ]
+})
+
+function openMenu(event: MouseEvent, cell: CellValue) {
+  menu.value = { event, cell }
+}
 </script>
 
 <template>
@@ -60,15 +80,22 @@ defineEmits<{
             border-l
             border-gray="800/10"
             hover:bg-gray="800/20"
-            cursor-pointer
-            select-none
             :class="cell === null ? 'text-gray-600 italic' : 'text-gray-300'"
-            @dblclick="$emit('copy-cell', $event, cell)"
+            @contextmenu.prevent="openMenu($event, cell)"
           >
             {{ formatCellValue(cell) }}
           </td>
         </tr>
       </tbody>
     </table>
+
+    <ContextMenu
+      v-if="menu"
+      :key="menu.event.timeStamp"
+      :x="menu.event.clientX"
+      :y="menu.event.clientY"
+      :items="menuItems"
+      @close="menu = null"
+    />
   </div>
 </template>
