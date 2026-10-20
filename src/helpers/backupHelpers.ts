@@ -15,14 +15,17 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 }
 
-// Newest first, groups ordered by their latest backup
-export function groupBackupsByConnection(backups: Backup[]): { name: string; backups: Backup[] }[] {
+// Newest first, groups ordered by their latest backup. Keyed by connection id so two
+// connections sharing a name stay apart; the group shows the newest snapshotted name.
+export function groupBackupsByConnection(
+  backups: Backup[],
+): { id: string; name: string; backups: Backup[] }[] {
   const groups = [...backups]
     .sort((a, b) => b.createdAt - a.createdAt)
     .reduce((acc, backup) => {
-      const list = acc.get(backup.connectionName)
-      list ? list.push(backup) : acc.set(backup.connectionName, [backup])
+      const list = acc.get(backup.connectionId)
+      list ? list.push(backup) : acc.set(backup.connectionId, [backup])
       return acc
     }, new Map<string, Backup[]>())
-  return [...groups].map(([name, backups]) => ({ name, backups }))
+  return [...groups].map(([id, backups]) => ({ id, name: backups[0].connectionName, backups }))
 }

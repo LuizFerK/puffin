@@ -10,7 +10,7 @@ import { useConnectionStore } from "../stores/connectionStore"
 import type { ComponentPublicInstance } from "vue"
 import type { QueryResult, PgError, CellValue } from "../types"
 import { formatCellValue } from "../helpers/cellHelpers"
-import { toConnectionParams } from "../helpers/connectionHelpers"
+import { toConnectionParams, connectionLabel } from "../helpers/connectionHelpers"
 import { useResultEdits, RESULT_EDITS_KEY } from "../composables/useResultEdits"
 import { changesSchema } from "../sql/completion"
 
@@ -321,7 +321,7 @@ async function onFormatQuery() {
       <div flex items-center gap-2>
         <template v-if="activeConnection">
           <div w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse></div>
-          Connected to {{ activeConnection.group }} {{ activeConnection.name }}
+          Connected to {{ connectionLabel(activeConnection) }}
         </template>
         <template v-else>
           <div w-1.5 h-1.5 rounded-full bg-gray-600></div>

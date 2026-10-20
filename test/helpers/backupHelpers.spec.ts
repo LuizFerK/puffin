@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest"
 import { formatBytes, formatDuration, groupBackupsByConnection } from "../../src/helpers/backupHelpers"
 import type { Backup } from "../../src/types"
 
-function backup(id: string, connectionName: string, createdAt: number): Backup {
+function backup(id: string, connectionId: string, createdAt: number, connectionName = connectionId): Backup {
   return {
     id,
-    connectionId: connectionName,
+    connectionId,
     connectionName,
     host: "localhost",
     port: 5432,
@@ -44,5 +44,18 @@ describe("groupBackupsByConnection", () => {
 
     expect(groups.map((g) => g.name)).toEqual(["alpha", "beta"])
     expect(groups[0].backups.map((d) => d.id)).toEqual(["a2", "a1"])
+  })
+
+  it("keeps connections that share a name apart, labeled by their newest name", () => {
+    const groups = groupBackupsByConnection([
+      backup("p1", "prod", 1, "Orders"),
+      backup("s1", "staging", 2, "Orders"),
+      backup("p2", "prod", 3, "Production Orders"),
+    ])
+
+    expect(groups.map((g) => [g.id, g.name])).toEqual([
+      ["prod", "Production Orders"],
+      ["staging", "Orders"],
+    ])
   })
 })

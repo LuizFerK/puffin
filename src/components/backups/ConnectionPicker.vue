@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SelectableCard from "./SelectableCard.vue"
 import { useConnectionStore } from "../../stores/connectionStore"
+import { connectionLabel } from "../../helpers/connectionHelpers"
 import type { Connection } from "../../types"
 
 defineProps<{
@@ -39,7 +40,7 @@ const { colorOf } = useConnectionStore()
         <div i-lucide-server></div>
       </div>
       <div flex flex-col gap-0.5 min-w-0 flex-1>
-        <span text-sm text-gray-200 truncate>{{ conn.name }}</span>
+        <span text-sm text-gray-200 truncate>{{ connectionLabel(conn) }}</span>
         <span text-xs text-gray-500 font-mono truncate>
           {{ conn.host }}:{{ conn.port }}/{{ conn.database }}
         </span>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from "../Button.vue"
+import { connectionLabel } from "../../helpers/connectionHelpers"
 import type { Connection } from "../../types"
 
 defineProps<{
@@ -50,7 +51,7 @@ defineEmits<{
 
     <div flex-1 flex flex-col w-10>
       <span font-medium text-gray-200 text-base
-        >{{ connection.group }} {{ connection.name }}</span
+        >{{ connectionLabel(connection) }}</span
       >
       <span text-sm text-gray-500 font-mono mt-0.5 truncate
         >{{ connection.host }}:{{ connection.port }}/{{

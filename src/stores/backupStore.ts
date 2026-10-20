@@ -2,7 +2,7 @@ import { computed, markRaw, ref } from "vue"
 import { lazyStore } from "../helpers/storeHelpers"
 import { Channel, invoke } from "@tauri-apps/api/core"
 import type { Connection, Backup, BackupJob, PgError, RestoreMode } from "../types"
-import { toConnectionParams } from "../helpers/connectionHelpers"
+import { connectionLabel, toConnectionParams } from "../helpers/connectionHelpers"
 import { groupBackupsByConnection } from "../helpers/backupHelpers"
 
 const STORE_FILE = "backups.json"
@@ -87,7 +87,7 @@ async function runJob<T>(
 }
 
 const createBackup = (conn: Connection) =>
-  runJob(`Backing up ${conn.name}`, async (channel, startedAt) => {
+  runJob(`Backing up ${connectionLabel(conn)}`, async (channel, startedAt) => {
     const file = await invoke<{ path: string; size_bytes: number }>("create_backup", {
       connection: toConnectionParams(conn),
       onLog: channel,
@@ -95,7 +95,7 @@ const createBackup = (conn: Connection) =>
     const backup: Backup = {
       id: crypto.randomUUID(),
       connectionId: conn.id,
-      connectionName: conn.name,
+      connectionName: connectionLabel(conn),
       host: conn.host,
       port: Number(conn.port),
       database: conn.database,
@@ -110,7 +110,7 @@ const createBackup = (conn: Connection) =>
   })
 
 const restoreBackup = (backup: Backup, target: Connection, mode: RestoreMode) =>
-  runJob(`Restoring into ${target.name}`, (channel) =>
+  runJob(`Restoring into ${connectionLabel(target)}`, (channel) =>
     invoke("restore_backup", {
       connection: toConnectionParams(target),
       path: backup.path,

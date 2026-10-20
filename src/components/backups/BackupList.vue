@@ -5,7 +5,7 @@ import BackupListItem from "./BackupListItem.vue"
 import type { Backup } from "../../types"
 
 defineProps<{
-  groups: { name: string; backups: Backup[] }[]
+  groups: { id: string; name: string; backups: Backup[] }[]
   total: number
   selectedId: string | null
   isRunning: boolean
@@ -60,7 +60,7 @@ defineEmits<{
         <p text-xs text-gray-700>Click "New backup" to back up a connection</p>
       </div>
 
-      <div v-for="group in groups" :key="group.name">
+      <div v-for="group in groups" :key="group.id">
         <GroupHeader :name="group.name" :count="group.backups.length" gap-3 px-4 pt-4 pb-2 />
 
         <BackupListItem
