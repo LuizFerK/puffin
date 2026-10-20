@@ -4,6 +4,7 @@ import Button from "./Button.vue"
 defineProps<{
   open: boolean
   title?: string
+  wide?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -33,8 +34,9 @@ const emit = defineEmits<{
           rounded-xl
           shadow-2xl
           w-full
-          max-w-md
           mx-4
+          transition-all
+          :class="wide ? 'max-w-3xl' : 'max-w-md'"
           overflow-hidden
           @click.stop
         >

@@ -386,22 +386,23 @@ fn quote_ident(ident: &str) -> String {
 
 // Values travel as text and are cast server-side, so Postgres parses every type.
 // data_type comes from format_type() and is already a valid SQL type expression.
-fn build_update_sql(update: &RowUpdate) -> String {
-    let placeholder = |c: &ColumnValue, i: usize| {
-        format!("{} = ${}::text::{}", quote_ident(&c.column), i, c.data_type)
+// `value` renders the text operand for each column given its 1-based parameter index.
+fn render_update_sql(update: &RowUpdate, value: impl Fn(&ColumnValue, usize) -> String) -> String {
+    let assign = |c: &ColumnValue, i: usize| {
+        format!("{} = {}::text::{}", quote_ident(&c.column), value(c, i), c.data_type)
     };
 
     let assignments: Vec<String> = update
         .set
         .iter()
         .enumerate()
-        .map(|(i, c)| placeholder(c, i + 1))
+        .map(|(i, c)| assign(c, i + 1))
         .collect();
     let conditions: Vec<String> = update
         .key
         .iter()
         .enumerate()
-        .map(|(i, c)| placeholder(c, update.set.len() + i + 1))
+        .map(|(i, c)| assign(c, update.set.len() + i + 1))
         .collect();
     let returning: Vec<String> = update.set.iter().map(|c| quote_ident(&c.column)).collect();
 
@@ -413,6 +414,23 @@ fn build_update_sql(update: &RowUpdate) -> String {
         conditions.join(" AND "),
         returning.join(", ")
     )
+}
+
+fn build_update_sql(update: &RowUpdate) -> String {
+    render_update_sql(update, |_, i| format!("${}", i))
+}
+
+// Assumes standard_conforming_strings (on by default since Postgres 9.1)
+fn quote_literal(value: &Option<String>) -> String {
+    match value {
+        Some(text) => format!("'{}'", text.replace('\'', "''")),
+        None => "NULL".into(),
+    }
+}
+
+// The executed statement with its parameters inlined, for the user to review
+fn preview_update_sql(update: &RowUpdate) -> String {
+    render_update_sql(update, |c, _| quote_literal(&c.value))
 }
 
 fn row_to_json(row: &tokio_postgres::Row) -> Vec<serde_json::Value> {
@@ -542,6 +560,11 @@ async fn apply_cell_edits(
 }
 
 #[tauri::command]
+fn preview_cell_edits(edits: Vec<RowUpdate>) -> Vec<String> {
+    edits.iter().map(preview_update_sql).collect()
+}
+
+#[tauri::command]
 async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, PgError> {
     let client = connect(connection).await?;
 
@@ -586,6 +609,7 @@ pub fn run() {
             decrypt_password,
             execute_query,
             apply_cell_edits,
+            preview_cell_edits,
             fetch_schema
         ])
         .run(tauri::generate_context!())
@@ -625,6 +649,24 @@ mod tests {
         assert_eq!(
             build_update_sql(&update),
             "UPDATE \"public\".\"users\" SET \"name\" = $1::text::text, \"price\" = $2::text::numeric(10,2) WHERE \"id\" = $3::text::integer RETURNING \"name\", \"price\""
+        );
+    }
+
+    #[test]
+    fn preview_update_sql_inlines_quoted_literals() {
+        let update = RowUpdate {
+            schema: "public".into(),
+            table: "users".into(),
+            key: vec![value("id", "integer", Some("1"))],
+            set: vec![
+                value("name", "text", Some("O'Brien")),
+                value("price", "numeric(10,2)", None),
+            ],
+        };
+
+        assert_eq!(
+            preview_update_sql(&update),
+            "UPDATE \"public\".\"users\" SET \"name\" = 'O''Brien'::text::text, \"price\" = NULL::text::numeric(10,2) WHERE \"id\" = '1'::text::integer RETURNING \"name\", \"price\""
         );
     }
 }

@@ -35,6 +35,10 @@ export function useResultEdits(results: Ref<QueryResult | null>) {
   const isApplying = ref(false)
   const applyError = ref<PgError | null>(null)
 
+  const rowUpdates = computed(() =>
+    results.value ? buildRowUpdates(results.value, pending.value) : { updates: [], targets: [] },
+  )
+
   const readOnlyReasons = computed(
     () => results.value?.column_meta.map((c) => c.read_only_reason) ?? [],
   )
@@ -100,7 +104,7 @@ export function useResultEdits(results: Ref<QueryResult | null>) {
     const conn = activeConnection.value
     if (!result || !conn || pending.value.size === 0 || isApplying.value) return
 
-    const { updates, targets } = buildRowUpdates(result, pending.value)
+    const { updates, targets } = rowUpdates.value
     isApplying.value = true
 
     try {
@@ -117,8 +121,12 @@ export function useResultEdits(results: Ref<QueryResult | null>) {
     }
   }
 
+  const previewSql = () =>
+    invoke<string[]>("preview_cell_edits", { edits: rowUpdates.value.updates })
+
   return {
     pending,
+    rowUpdates,
     editing,
     isApplying,
     applyError,
@@ -130,6 +138,7 @@ export function useResultEdits(results: Ref<QueryResult | null>) {
     revert,
     discardAll,
     apply,
+    previewSql,
   }
 }
 
