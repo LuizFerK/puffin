@@ -38,11 +38,49 @@ export type JsonValue =
 
 export type CellValue = JsonValue
 
+export interface ColumnSource {
+  table_oid: number
+  column: string
+  data_type: string
+  not_null: boolean
+  generated: boolean
+}
+
+export interface ResultColumn {
+  name: string
+  type_name: string
+  source: ColumnSource | null
+  read_only_reason: string | null
+}
+
+export interface EditableTable {
+  table_oid: number
+  schema: string
+  name: string
+  key_columns: number[]
+  keys: string[][]
+}
+
 export interface QueryResult {
   columns: string[]
+  column_meta: ResultColumn[]
+  tables: EditableTable[]
   rows: CellValue[][]
   row_count: number
   elapsed_ms: number
+}
+
+export interface ColumnValue {
+  column: string
+  data_type: string
+  value: string | null
+}
+
+export interface RowUpdate {
+  schema: string
+  table: string
+  key: ColumnValue[]
+  set: ColumnValue[]
 }
 
 export interface PgError {

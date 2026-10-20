@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { format } from 'sql-formatter'
 import type { SavedQuery, HistoryQuery, QueryConsoleState, DatabaseSchema } from "../types"
 import { useConnectionStore } from "./connectionStore"
+import { toConnectionParams } from "../helpers/connectionHelpers"
 import { useSettingsStore, RETENTION_MS } from "./settingsStore"
 
 const STORE_FILE = "queries.json"
@@ -41,7 +42,7 @@ async function fetchSchema() {
     return
   }
   try {
-    schemaInfo.value = await invoke<DatabaseSchema>("fetch_schema", { connection: conn })
+    schemaInfo.value = await invoke<DatabaseSchema>("fetch_schema", { connection: toConnectionParams(conn) })
   } catch (e) {
     console.error("Failed to fetch schema", e)
     schemaInfo.value = null

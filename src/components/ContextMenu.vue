@@ -5,6 +5,7 @@ export interface ContextMenuItem {
   label: string
   icon: string
   action: () => void
+  disabled?: boolean
 }
 
 const props = defineProps<{
@@ -35,6 +36,7 @@ async function clampToViewport() {
 }
 
 function select(item: ContextMenuItem) {
+  if (item.disabled) return
   item.action()
   emit("close")
 }
@@ -79,6 +81,7 @@ onBeforeUnmount(() => {
         v-for="item in items"
         :key="item.label"
         class="context-menu-item"
+        :disabled="item.disabled"
         @click="select(item)"
       >
         <div :class="item.icon" text-sm shrink-0></div>
@@ -123,7 +126,12 @@ onBeforeUnmount(() => {
     color 0.1s ease;
 }
 
-.context-menu-item:hover {
+.context-menu-item:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.context-menu-item:disabled {
+  color: #6b7280;
+  cursor: default;
 }
 </style>

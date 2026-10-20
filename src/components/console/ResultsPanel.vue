@@ -26,7 +26,7 @@ defineEmits<{
 
     <ResultsTable
       v-if="results && results.columns.length > 0"
-      :columns="results.columns"
+      :column-meta="results.column_meta"
       :rows="results.rows"
       @copy-cell="(e, val) => $emit('copy-cell', e, val)"
     />

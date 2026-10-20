@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from "vue"
+import { ref, shallowRef, watch, onMounted, onUnmounted, provide } from "vue"
 import { invoke } from "@tauri-apps/api/core"
 import Button from "../components/Button.vue"
 import Modal from "../components/Modal.vue"
@@ -10,6 +10,8 @@ import { useConnectionStore } from "../stores/connectionStore"
 import type { ComponentPublicInstance } from "vue"
 import type { QueryResult, PgError, CellValue } from "../types"
 import { formatCellValue } from "../helpers/cellHelpers"
+import { toConnectionParams } from "../helpers/connectionHelpers"
+import { useResultEdits, RESULT_EDITS_KEY } from "../composables/useResultEdits"
 import { changesSchema } from "../sql/completion"
 
 const {
@@ -51,9 +53,12 @@ function executeFromButton() {
   executeQuery(query ?? undefined)
 }
 
-const results = ref<QueryResult | null>(null)
+// Shallow: rows are only ever replaced whole, including after applying cell edits
+const results = shallowRef<QueryResult | null>(null)
 const queryError = ref<PgError | null>(null)
 const isExecuting = ref(false)
+
+provide(RESULT_EDITS_KEY, useResultEdits(results))
 
 async function executeQuery(sql?: string) {
   const queryToRun = sql || queryText.value.trim()
@@ -81,13 +86,7 @@ async function executeQuery(sql?: string) {
   try {
     const conn = activeConnection.value
     const result = await invoke<QueryResult>("execute_query", {
-      connection: {
-        host: conn.host,
-        port: Number(conn.port),
-        database: conn.database,
-        username: conn.username,
-        password: conn.password || "",
-      },
+      connection: toConnectionParams(conn),
       sql: queryToRun,
     })
     results.value = result

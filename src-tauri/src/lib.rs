@@ -6,11 +6,12 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
-use tokio_postgres::{
-    types::{Kind, Type},
-    NoTls,
-};
-use uuid::Uuid;
+use tokio_postgres::{types::Type, NoTls};
+
+mod decode;
+
+// Rows beyond this are dropped before reaching the UI
+const MAX_ROWS: usize = 500;
 
 // App-specific 32-byte key (AES-256). Machine-bound, not user-facing.
 const APP_KEY: &[u8; 32] = b"puffin-db-manager-enc-key-v1!!!!";
@@ -67,9 +68,54 @@ struct ConnectionParams {
 #[derive(Serialize)]
 struct QueryResult {
     columns: Vec<String>,
+    column_meta: Vec<ResultColumn>,
+    tables: Vec<EditableTable>,
     rows: Vec<Vec<serde_json::Value>>,
     row_count: usize,
     elapsed_ms: u128,
+}
+
+#[derive(Serialize)]
+struct ResultColumn {
+    name: String,
+    type_name: String,
+    source: Option<ColumnSource>,
+    read_only_reason: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+struct ColumnSource {
+    table_oid: u32,
+    column: String,
+    data_type: String,
+    not_null: bool,
+    generated: bool,
+}
+
+// A table whose rows can be identified: key_columns index into each result row and
+// keys[row] holds their exact text, sent back verbatim in the UPDATE's WHERE
+#[derive(Serialize)]
+struct EditableTable {
+    table_oid: u32,
+    schema: String,
+    name: String,
+    key_columns: Vec<usize>,
+    keys: Vec<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct ColumnValue {
+    column: String,
+    data_type: String,
+    value: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct RowUpdate {
+    schema: String,
+    table: String,
+    key: Vec<ColumnValue>,
+    set: Vec<ColumnValue>,
 }
 
 #[derive(Serialize)]
@@ -129,180 +175,6 @@ fn group_tables(rows: Vec<tokio_postgres::Row>) -> Vec<TableInfo> {
     tables
 }
 
-fn format_naive_datetime(v: &chrono::NaiveDateTime) -> String {
-    use chrono::Timelike;
-    if v.nanosecond() % 1_000_000_000 != 0 {
-        v.format("%Y-%m-%d %H:%M:%S%.3f").to_string()
-    } else {
-        v.format("%Y-%m-%d %H:%M:%S").to_string()
-    }
-}
-
-fn format_datetime_utc(v: &chrono::DateTime<chrono::Utc>) -> String {
-    use chrono::Timelike;
-    if v.nanosecond() % 1_000_000_000 != 0 {
-        v.format("%Y-%m-%d %H:%M:%S%.3f %Z").to_string()
-    } else {
-        v.format("%Y-%m-%d %H:%M:%S %Z").to_string()
-    }
-}
-
-fn pg_array_to_json(
-    row: &tokio_postgres::Row,
-    idx: usize,
-    elem_type: &Type,
-    col_type: &Type,
-) -> serde_json::Value {
-    macro_rules! try_array_type {
-        ($rust_type:ty) => {
-            if let Ok(val) = row.try_get::<_, Option<Vec<Option<$rust_type>>>>(idx) {
-                return match val {
-                    Some(v) => serde_json::Value::Array(
-                        v.into_iter()
-                            .map(|e| match e {
-                                Some(x) => serde_json::to_value(x).unwrap_or(serde_json::Value::Null),
-                                None => serde_json::Value::Null,
-                            })
-                            .collect(),
-                    ),
-                    None => serde_json::Value::Null,
-                };
-            }
-        };
-    }
-
-    macro_rules! try_array_type_with {
-        ($rust_type:ty, $fmt:expr) => {
-            if let Ok(val) = row.try_get::<_, Option<Vec<Option<$rust_type>>>>(idx) {
-                return match val {
-                    Some(v) => serde_json::Value::Array(
-                        v.into_iter()
-                            .map(|e| match e {
-                                Some(x) => serde_json::Value::String($fmt(&x)),
-                                None => serde_json::Value::Null,
-                            })
-                            .collect(),
-                    ),
-                    None => serde_json::Value::Null,
-                };
-            }
-        };
-    }
-
-    match *elem_type {
-        Type::BOOL => try_array_type!(bool),
-        Type::INT2 => try_array_type!(i16),
-        Type::INT4 => try_array_type!(i32),
-        Type::INT8 => try_array_type!(i64),
-        Type::FLOAT4 => try_array_type!(f32),
-        Type::FLOAT8 => try_array_type!(f64),
-        Type::TEXT | Type::VARCHAR | Type::NAME | Type::BPCHAR => try_array_type!(String),
-        Type::JSON | Type::JSONB => try_array_type!(serde_json::Value),
-        Type::UUID => try_array_type_with!(Uuid, |v: &Uuid| v.to_string()),
-        Type::DATE => try_array_type_with!(chrono::NaiveDate, |v: &chrono::NaiveDate| v.to_string()),
-        Type::TIMESTAMP => {
-            try_array_type_with!(chrono::NaiveDateTime, format_naive_datetime)
-        }
-        Type::TIMESTAMPTZ => {
-            try_array_type_with!(chrono::DateTime<chrono::Utc>, format_datetime_utc)
-        }
-        _ => {}
-    }
-
-    // Fallback: try as an array of strings
-    if let Ok(val) = row.try_get::<_, Option<Vec<Option<String>>>>(idx) {
-        return match val {
-            Some(v) => serde_json::Value::Array(
-                v.into_iter()
-                    .map(|e| e.map_or(serde_json::Value::Null, serde_json::Value::String))
-                    .collect(),
-            ),
-            None => serde_json::Value::Null,
-        };
-    }
-
-    serde_json::Value::String(format!("<unsupported: {}>", col_type.name()))
-}
-
-fn pg_value_to_json(
-    row: &tokio_postgres::Row,
-    idx: usize,
-    col_type: &Type,
-) -> serde_json::Value {
-    if let Kind::Array(elem_type) = col_type.kind() {
-        return pg_array_to_json(row, idx, elem_type, col_type);
-    }
-
-    // Try to extract the value based on the column type
-    macro_rules! try_type {
-        ($rust_type:ty) => {
-            if let Ok(val) = row.try_get::<_, Option<$rust_type>>(idx) {
-                return match val {
-                    Some(v) => serde_json::to_value(v).unwrap_or(serde_json::Value::Null),
-                    None => serde_json::Value::Null,
-                };
-            }
-        };
-    }
-
-    match *col_type {
-        Type::BOOL => try_type!(bool),
-        Type::INT2 => try_type!(i16),
-        Type::INT4 => try_type!(i32),
-        Type::INT8 => try_type!(i64),
-        Type::FLOAT4 => try_type!(f32),
-        Type::FLOAT8 => try_type!(f64),
-        Type::TEXT | Type::VARCHAR | Type::NAME | Type::BPCHAR => try_type!(String),
-        Type::TIMESTAMP => {
-            if let Ok(val) = row.try_get::<_, Option<chrono::NaiveDateTime>>(idx) {
-                return match val {
-                    Some(v) => serde_json::Value::String(format_naive_datetime(&v)),
-                    None => serde_json::Value::Null,
-                };
-            }
-        }
-        Type::TIMESTAMPTZ => {
-            if let Ok(val) =
-                row.try_get::<_, Option<chrono::DateTime<chrono::Utc>>>(idx)
-            {
-                return match val {
-                    Some(v) => serde_json::Value::String(format_datetime_utc(&v)),
-                    None => serde_json::Value::Null,
-                };
-            }
-        }
-        Type::DATE => {
-            if let Ok(val) = row.try_get::<_, Option<chrono::NaiveDate>>(idx) {
-                return match val {
-                    Some(v) => serde_json::Value::String(v.to_string()),
-                    None => serde_json::Value::Null,
-                };
-            }
-        }
-        Type::JSON | Type::JSONB => try_type!(serde_json::Value),
-        Type::UUID => {
-            if let Ok(val) = row.try_get::<_, Option<Uuid>>(idx) {
-                return match val {
-                    Some(v) => serde_json::Value::String(v.to_string()),
-                    None => serde_json::Value::Null,
-                };
-            }
-        }
-        Type::OID => try_type!(u32),
-        _ => {}
-    }
-
-    // Fallback: try as string
-    if let Ok(val) = row.try_get::<_, Option<String>>(idx) {
-        return match val {
-            Some(v) => serde_json::Value::String(v),
-            None => serde_json::Value::Null,
-        };
-    }
-
-    serde_json::Value::String(format!("<unsupported: {}>", col_type.name()))
-}
-
 #[derive(Serialize)]
 struct PgError {
     detail: String,
@@ -321,6 +193,234 @@ fn format_pg_error(e: &tokio_postgres::Error) -> PgError {
             hint: None,
         }
     }
+}
+
+struct CatalogColumn {
+    attnum: i16,
+    source: ColumnSource,
+}
+
+struct CatalogTable {
+    table_oid: u32,
+    schema: String,
+    name: String,
+    primary_key: Vec<String>,
+}
+
+// Only plain and partitioned tables are returned, so views and expressions stay read-only
+async fn fetch_column_sources(
+    client: &tokio_postgres::Client,
+    table_oids: Vec<u32>,
+) -> Result<(Vec<CatalogColumn>, Vec<CatalogTable>), tokio_postgres::Error> {
+    if table_oids.is_empty() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+
+    let sql = "
+        SELECT a.attrelid AS table_oid,
+               n.nspname AS schema,
+               c.relname AS table_name,
+               a.attnum,
+               a.attname AS column_name,
+               format_type(a.atttypid, a.atttypmod) AS data_type,
+               a.attnotnull AS not_null,
+               a.attgenerated <> '' AS generated,
+               COALESCE(a.attnum = ANY(i.indkey), false) AS is_pk
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        LEFT JOIN pg_index i ON i.indrelid = c.oid AND i.indisprimary
+        WHERE a.attrelid = ANY($1)
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+          AND c.relkind IN ('r', 'p')
+        ORDER BY a.attrelid, a.attnum;
+    ";
+
+    let rows = client.query(sql, &[&table_oids]).await?;
+
+    let mut tables: Vec<CatalogTable> = Vec::new();
+    let mut columns: Vec<CatalogColumn> = Vec::with_capacity(rows.len());
+
+    for row in &rows {
+        let table_oid: u32 = row.get("table_oid");
+        let column: String = row.get("column_name");
+
+        if tables.last().map(|t| t.table_oid) != Some(table_oid) {
+            tables.push(CatalogTable {
+                table_oid,
+                schema: row.get("schema"),
+                name: row.get("table_name"),
+                primary_key: Vec::new(),
+            });
+        }
+        if row.get::<_, bool>("is_pk") {
+            tables.last_mut().unwrap().primary_key.push(column.clone());
+        }
+
+        columns.push(CatalogColumn {
+            attnum: row.get("attnum"),
+            source: ColumnSource {
+                table_oid,
+                column,
+                data_type: row.get("data_type"),
+                not_null: row.get("not_null"),
+                generated: row.get("generated"),
+            },
+        });
+    }
+
+    Ok((columns, tables))
+}
+
+fn column_source(col: &tokio_postgres::Column, catalog: &[CatalogColumn]) -> Option<ColumnSource> {
+    catalog
+        .iter()
+        .find(|c| Some(c.source.table_oid) == col.table_oid() && Some(c.attnum) == col.column_id())
+        .map(|c| c.source.clone())
+}
+
+fn editable_table(
+    table: &CatalogTable,
+    sources: &[Option<ColumnSource>],
+    columns: &[tokio_postgres::Column],
+    rows: &[tokio_postgres::Row],
+) -> Result<EditableTable, String> {
+    if table.primary_key.is_empty() {
+        return Err("Read-only: table has no primary key".into());
+    }
+
+    let key_columns = table
+        .primary_key
+        .iter()
+        .map(|pk| {
+            sources.iter().position(|s| {
+                s.as_ref()
+                    .is_some_and(|s| s.table_oid == table.table_oid && &s.column == pk)
+            })
+        })
+        .collect::<Option<Vec<usize>>>()
+        .ok_or("Read-only: primary key not in result")?;
+
+    if !key_columns.iter().all(|&i| decode::is_keyable(columns[i].type_())) {
+        return Err("Read-only: primary key type not supported".into());
+    }
+
+    let keys = rows
+        .iter()
+        .map(|row| {
+            key_columns
+                .iter()
+                .map(|&i| decode::key_text(row, i))
+                .collect::<Option<Vec<String>>>()
+        })
+        .collect::<Option<Vec<_>>>()
+        .ok_or("Read-only: primary key could not be read")?;
+
+    Ok(EditableTable {
+        table_oid: table.table_oid,
+        schema: table.schema.clone(),
+        name: table.name.clone(),
+        key_columns,
+        keys,
+    })
+}
+
+fn read_only_reason(
+    col: &tokio_postgres::Column,
+    source: Option<&ColumnSource>,
+    tables: &[(u32, Result<EditableTable, String>)],
+) -> Option<String> {
+    if !decode::is_decodable(col.type_()) {
+        return Some(format!("Read-only: unsupported type {}", col.type_().name()));
+    }
+
+    let Some(source) = source else {
+        return Some("Read-only: not a table column".into());
+    };
+    if source.generated {
+        return Some("Read-only: generated column".into());
+    }
+
+    match tables.iter().find(|(oid, _)| *oid == source.table_oid) {
+        Some((_, Ok(_))) => None,
+        Some((_, Err(reason))) => Some(reason.clone()),
+        None => Some("Read-only: not a table column".into()),
+    }
+}
+
+// Decides editability here, where types, catalog and raw values are all at hand
+fn describe_result(
+    columns: &[tokio_postgres::Column],
+    catalog: &[CatalogColumn],
+    catalog_tables: &[CatalogTable],
+    rows: &[tokio_postgres::Row],
+) -> (Vec<ResultColumn>, Vec<EditableTable>) {
+    let sources: Vec<Option<ColumnSource>> =
+        columns.iter().map(|c| column_source(c, catalog)).collect();
+
+    let tables: Vec<(u32, Result<EditableTable, String>)> = catalog_tables
+        .iter()
+        .map(|t| (t.table_oid, editable_table(t, &sources, columns, rows)))
+        .collect();
+
+    let column_meta = columns
+        .iter()
+        .zip(sources)
+        .map(|(col, source)| ResultColumn {
+            name: col.name().to_string(),
+            type_name: col.type_().name().to_string(),
+            read_only_reason: read_only_reason(col, source.as_ref(), &tables),
+            source,
+        })
+        .collect();
+
+    let editable = tables.into_iter().filter_map(|(_, t)| t.ok()).collect();
+
+    (column_meta, editable)
+}
+
+fn quote_ident(ident: &str) -> String {
+    format!("\"{}\"", ident.replace('"', "\"\""))
+}
+
+// Values travel as text and are cast server-side, so Postgres parses every type.
+// data_type comes from format_type() and is already a valid SQL type expression.
+fn build_update_sql(update: &RowUpdate) -> String {
+    let placeholder = |c: &ColumnValue, i: usize| {
+        format!("{} = ${}::text::{}", quote_ident(&c.column), i, c.data_type)
+    };
+
+    let assignments: Vec<String> = update
+        .set
+        .iter()
+        .enumerate()
+        .map(|(i, c)| placeholder(c, i + 1))
+        .collect();
+    let conditions: Vec<String> = update
+        .key
+        .iter()
+        .enumerate()
+        .map(|(i, c)| placeholder(c, update.set.len() + i + 1))
+        .collect();
+    let returning: Vec<String> = update.set.iter().map(|c| quote_ident(&c.column)).collect();
+
+    format!(
+        "UPDATE {}.{} SET {} WHERE {} RETURNING {}",
+        quote_ident(&update.schema),
+        quote_ident(&update.table),
+        assignments.join(", "),
+        conditions.join(" AND "),
+        returning.join(", ")
+    )
+}
+
+fn row_to_json(row: &tokio_postgres::Row) -> Vec<serde_json::Value> {
+    row.columns()
+        .iter()
+        .enumerate()
+        .map(|(i, _)| decode::cell_to_json(row, i))
+        .collect()
 }
 
 async fn connect(connection: ConnectionParams) -> Result<tokio_postgres::Client, PgError> {
@@ -351,39 +451,89 @@ async fn execute_query(connection: ConnectionParams, sql: String) -> Result<Quer
 
     let start = Instant::now();
 
-    let rows = client
-        .query(&sql as &str, &[])
+    let statement = client
+        .prepare(&sql)
         .await
         .map_err(|e| format_pg_error(&e))?;
 
+    let mut table_oids: Vec<u32> = statement
+        .columns()
+        .iter()
+        .filter_map(|c| c.table_oid())
+        .collect();
+    table_oids.sort_unstable();
+    table_oids.dedup();
+
+    // tokio-postgres pipelines both queries, so the catalog lookup adds no round trip
+    let (rows, (catalog, catalog_tables)) = tokio::try_join!(
+        client.query(&statement, &[]),
+        fetch_column_sources(&client, table_oids),
+    )
+    .map_err(|e| format_pg_error(&e))?;
+
     let elapsed_ms = start.elapsed().as_millis();
 
-    let columns: Vec<String> = if let Some(first) = rows.first() {
-        first.columns().iter().map(|c| c.name().to_string()).collect()
-    } else {
-        Vec::new()
-    };
-
-    let json_rows: Vec<Vec<serde_json::Value>> = rows
+    let columns: Vec<String> = statement
+        .columns()
         .iter()
-        .take(500)
-        .map(|row| {
-            row.columns()
-                .iter()
-                .enumerate()
-                .map(|(i, col)| pg_value_to_json(row, i, col.type_()))
-                .collect()
-        })
+        .map(|c| c.name().to_string())
         .collect();
 
-    let row_count = json_rows.len();
+    let rows = &rows[..rows.len().min(MAX_ROWS)];
+    let (column_meta, tables) = describe_result(statement.columns(), &catalog, &catalog_tables, rows);
 
     Ok(QueryResult {
         columns,
-        rows: json_rows,
-        row_count,
+        column_meta,
+        tables,
+        rows: rows.iter().map(row_to_json).collect(),
+        row_count: rows.len(),
         elapsed_ms,
     })
+}
+
+#[tauri::command]
+async fn apply_cell_edits(
+    connection: ConnectionParams,
+    edits: Vec<RowUpdate>,
+) -> Result<Vec<Vec<serde_json::Value>>, PgError> {
+    let mut client = connect(connection).await?;
+    let tx = client.transaction().await.map_err(|e| format_pg_error(&e))?;
+
+    let mut updated = Vec::with_capacity(edits.len());
+    for edit in &edits {
+        // Typed params skip the implicit prepare round trip; every value is sent as text
+        let params: Vec<(&(dyn tokio_postgres::types::ToSql + Sync), Type)> = edit
+            .set
+            .iter()
+            .chain(edit.key.iter())
+            .map(|c| (&c.value as &(dyn tokio_postgres::types::ToSql + Sync), Type::TEXT))
+            .collect();
+
+        let rows = tx
+            .query_typed(&build_update_sql(edit), &params)
+            .await
+            .map_err(|e| format_pg_error(&e))?;
+
+        // Dropping the transaction on early return rolls back every update in the batch
+        if rows.len() != 1 {
+            return Err(PgError {
+                detail: format!(
+                    "Expected to update 1 row in {}.{}, but matched {}",
+                    edit.schema,
+                    edit.table,
+                    rows.len()
+                ),
+                hint: Some("The row may have been changed or deleted. Re-run the query.".into()),
+            });
+        }
+
+        updated.push(row_to_json(&rows[0]));
+    }
+
+    tx.commit().await.map_err(|e| format_pg_error(&e))?;
+
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -430,8 +580,46 @@ pub fn run() {
             encrypt_password,
             decrypt_password,
             execute_query,
+            apply_cell_edits,
             fetch_schema
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn value(column: &str, data_type: &str, value: Option<&str>) -> ColumnValue {
+        ColumnValue {
+            column: column.into(),
+            data_type: data_type.into(),
+            value: value.map(String::from),
+        }
+    }
+
+    #[test]
+    fn quote_ident_escapes_double_quotes() {
+        assert_eq!(quote_ident("name"), "\"name\"");
+        assert_eq!(quote_ident("we\"ird"), "\"we\"\"ird\"");
+    }
+
+    #[test]
+    fn build_update_sql_numbers_set_before_key() {
+        let update = RowUpdate {
+            schema: "public".into(),
+            table: "users".into(),
+            key: vec![value("id", "integer", Some("1"))],
+            set: vec![
+                value("name", "text", Some("Ana")),
+                value("price", "numeric(10,2)", None),
+            ],
+        };
+
+        assert_eq!(
+            build_update_sql(&update),
+            "UPDATE \"public\".\"users\" SET \"name\" = $1::text::text, \"price\" = $2::text::numeric(10,2) WHERE \"id\" = $3::text::integer RETURNING \"name\", \"price\""
+        );
+    }
 }

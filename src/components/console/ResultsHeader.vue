@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { QueryResult, PgError } from "../../types"
 import ResultsHeaderCopyToClipboard from "./ResultsHeaderCopyToClipboard.vue"
+import ResultsHeaderPendingEdits from "./ResultsHeaderPendingEdits.vue"
 
 defineProps<{
   results: QueryResult | null
@@ -54,6 +55,8 @@ defineProps<{
 
       <!-- Spacer to push copy button right -->
       <div flex-1></div>
+
+      <ResultsHeaderPendingEdits />
 
       <ResultsHeaderCopyToClipboard
         v-if="results.row_count > 0 && results.columns.length > 0"

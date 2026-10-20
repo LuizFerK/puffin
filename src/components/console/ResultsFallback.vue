@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { QueryResult, PgError } from "../../types"
-import { capitalize } from "../../helpers/stringHelpers"
+import PgErrorMessage from "./PgErrorMessage.vue"
 
 defineProps<{
   results: QueryResult | null
@@ -22,10 +22,7 @@ defineProps<{
     <!-- Error state -->
     <template v-else-if="error">
       <div i-lucide-x-circle text-3xl text-red-500 mb-2></div>
-      <span text-sm text-red-400>{{ capitalize(error.detail) }}</span>
-      <span v-if="error.hint" text-xs text-red-500 opacity-70 mt-1>{{
-        error.hint
-      }}</span>
+      <PgErrorMessage :error="error" />
     </template>
 
     <!-- Empty state -->

@@ -2949,6 +2949,8 @@ dependencies = [
  "aes-gcm",
  "base64 0.22.1",
  "chrono",
+ "fallible-iterator",
+ "postgres-protocol",
  "rand 0.8.5",
  "serde",
  "serde_json",
