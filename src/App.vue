@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue"
 import { useRouter } from "vue-router"
 import Navbar from "./components/Navbar.vue"
+import { NAV_ITEMS, SETTINGS_ITEM } from "./navigation"
 import { useSettingsStore } from "./stores/settingsStore"
 import { zoomIn, zoomOut, resetZoom, toggleFullscreen } from "./helpers/windowHelpers"
 
@@ -35,32 +36,14 @@ function handleShortcuts(e: KeyboardEvent) {
     return
   }
 
-  // Ctrl+Shift shortcuts for navigation
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-    switch (e.key.toLowerCase()) {
-      case "d":
-        e.preventDefault()
-        router.push("/connections")
-        break
-      case "c":
-        e.preventDefault()
-        router.push("/collection")
-        break
-      case "x":
-        e.preventDefault()
-        router.push("/history")
-        break
-      case "s":
-        e.preventDefault()
-        router.push("/settings")
-        break
-      case "e":
-        e.preventDefault()
-        // TODO: When enter the console page auto focus on the editor
-        router.push("/")
-        break
-    }
-  }
+  if (!(e.ctrlKey || e.metaKey) || !e.shiftKey) return
+
+  // Also keeps Ctrl+Shift+R from hard-reloading the webview
+  const key = e.key.toLowerCase()
+  const item = [...NAV_ITEMS, SETTINGS_ITEM].find((i) => i.shortcut.toLowerCase() === key)
+  if (!item) return
+  e.preventDefault()
+  router.push(item.path)
 }
 
 // Capture phase so Monaco can't swallow these before they reach us

@@ -76,12 +76,7 @@ async function confirmDelete() {
         <Button variant="secondary" @click="isDeleteModalOpen = false"
           >Cancel</Button
         >
-        <Button
-          variant="primary"
-          class="!bg-red-500/10 !text-red-400 hover:!bg-red-500/20"
-          @click="confirmDelete"
-          >Delete</Button
-        >
+        <Button variant="danger" @click="confirmDelete">Delete</Button>
       </template>
     </Modal>
   </div>

@@ -12,6 +12,9 @@
 
         pnpm = pkgs.pnpm_11;
 
+        # pg_dump refuses servers newer than itself, so ship the newest client
+        postgresql = pkgs.postgresql_18;
+
         # Shared runtime dependencies
         runtimeLibs = with pkgs; [
           gtk3
@@ -71,6 +74,7 @@
 
           preFixup = ''
             gappsWrapperArgs+=(--set WEBKIT_DISABLE_DMABUF_RENDERER 1)
+            gappsWrapperArgs+=(--prefix PATH : ${lib.makeBinPath [ postgresql ]})
           '';
 
           meta = {
@@ -94,6 +98,7 @@
             gobject-introspection
             nodejs
             pnpm
+            postgresql
           ];
 
           buildInputs = runtimeLibs;

@@ -4,6 +4,7 @@ import Button from "../components/Button.vue"
 import Modal from "../components/Modal.vue"
 import ConnectionForm from "../components/connections/ConnectionForm.vue"
 import ConnectionCard from "../components/connections/ConnectionCard.vue"
+import GroupHeader from "../components/GroupHeader.vue"
 import { useConnectionStore } from "../stores/connectionStore"
 import type { Connection } from "../types"
 
@@ -11,6 +12,7 @@ const {
   connections,
   activeConnectionId,
   groupedConnections,
+  colorOf,
   loadConnections,
   addConnection,
   removeConnection,
@@ -32,19 +34,6 @@ async function confirmDelete() {
   }
   isDeleteModalOpen.value = false
   connectionToDelete.value = null
-}
-
-const COLORS = [
-  "#4ade80",
-  "#facc15",
-  "#38bdf8",
-  "#f87171",
-  "#c084fc",
-  "#fb923c",
-]
-
-function getColor(index: number) {
-  return COLORS[index % COLORS.length]
 }
 
 onMounted(() => loadConnections())
@@ -155,26 +144,14 @@ function cancelForm() {
           gap-3
         >
           <!-- Group Header -->
-          <div
+          <GroupHeader
             v-if="groupName !== 'Ungrouped'"
-            flex
-            items-center
+            :name="String(groupName)"
+            :count="conns.length"
             gap-4
             mb-1
             mt-6
-          >
-            <h3
-              text-xs
-              font-semibold
-              text-gray="400/80"
-              uppercase
-              tracking-widest
-            >
-              {{ groupName }}
-            </h3>
-            <div flex-1 h-px bg-gray="800/80"></div>
-            <span text-xs text-gray-500 font-medium>{{ conns.length }}</span>
-          </div>
+          />
           <div v-else mt-6></div>
 
           <!-- Group Cards -->
@@ -191,7 +168,7 @@ function cancelForm() {
               :key="conn.id"
               :connection="conn"
               :is-active="activeConnectionId === conn.id"
-              :color="getColor(connections.indexOf(conn))"
+              :color="colorOf(conn)"
               :indented="groupName !== 'Ungrouped'"
               @select="setActiveConnection(conn.id)"
               @delete="openDeleteModal(conn)"
@@ -215,12 +192,7 @@ function cancelForm() {
           <Button variant="secondary" @click="isDeleteModalOpen = false"
             >Cancel</Button
           >
-          <Button
-            variant="primary"
-            class="!bg-red-500/10 !text-red-400 hover:!bg-red-500/20"
-            @click="confirmDelete"
-            >Delete</Button
-          >
+          <Button variant="danger" @click="confirmDelete">Delete</Button>
         </template>
       </Modal>
     </div>

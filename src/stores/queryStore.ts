@@ -1,5 +1,5 @@
 import { ref, shallowRef, computed, watch } from "vue"
-import { load } from "@tauri-apps/plugin-store"
+import { lazyStore } from "../helpers/storeHelpers"
 import { invoke } from "@tauri-apps/api/core"
 import { format } from 'sql-formatter'
 import type { SavedQuery, HistoryQuery, QueryConsoleState, DatabaseSchema } from "../types"
@@ -18,14 +18,7 @@ const loaded = ref(false)
 // Shallow: the schema can hold thousands of tables and is only ever replaced whole
 const schemaInfo = shallowRef<DatabaseSchema | null>(null)
 
-let store: Awaited<ReturnType<typeof load>> | null = null
-
-async function getStore() {
-  if (!store) {
-    store = await load(STORE_FILE, { autoSave: true, defaults: {} })
-  }
-  return store
-}
+const getStore = lazyStore(STORE_FILE)
 
 async function persist() {
   const s = await getStore()

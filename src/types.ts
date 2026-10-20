@@ -106,3 +106,28 @@ export interface DatabaseSchema {
   tables: TableInfo[]
   search_path: string[]
 }
+
+export type RestoreMode = "replace" | "recreate"
+
+// Connection fields are snapshotted so a backup outlives renames and deletions of its source
+export interface Backup {
+  id: string
+  connectionId: string
+  connectionName: string
+  host: string
+  port: number
+  database: string
+  createdAt: number
+  path: string
+  sizeBytes: number
+  durationMs: number
+}
+
+export interface BackupJob {
+  title: string
+  status: "running" | "success" | "error"
+  log: string[]
+  error: PgError | null
+  startedAt: number
+  finishedAt: number | null
+}

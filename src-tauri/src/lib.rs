@@ -5,7 +5,13 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::process::Stdio;
 use std::time::Instant;
+use tauri::{ipc::Channel, AppHandle, Manager};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 use tokio_postgres::{types::Type, NoTls};
 
 mod decode;
@@ -56,7 +62,7 @@ fn decrypt_password(encrypted: String) -> Result<String, String> {
     String::from_utf8(plaintext).map_err(|e| format!("UTF-8 decode failed: {}", e))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct ConnectionParams {
     host: String,
     port: u16,
@@ -179,6 +185,12 @@ fn group_tables(rows: Vec<tokio_postgres::Row>) -> Vec<TableInfo> {
 struct PgError {
     detail: String,
     hint: Option<String>,
+}
+
+impl PgError {
+    fn new(detail: impl Into<String>) -> Self {
+        PgError { detail: detail.into(), hint: None }
+    }
 }
 
 fn format_pg_error(e: &tokio_postgres::Error) -> PgError {
@@ -599,6 +611,215 @@ async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, PgErro
     })
 }
 
+// --- Backups ---
+
+// Lines kept from a failed pg_dump/pg_restore to explain the failure
+const ERROR_TAIL_LINES: usize = 20;
+
+#[derive(Deserialize, Clone, Copy, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+enum RestoreMode {
+    // Drops and recreates the backup's objects, leaving anything else in place
+    Replace,
+    // Drops the whole database first, so the result matches the backup exactly
+    Recreate,
+}
+
+#[derive(Serialize)]
+struct BackupFile {
+    path: String,
+    size_bytes: u64,
+}
+
+// The dbname goes through -d as a conninfo string, so a name containing `=` is never
+// mistaken for a connection string by libpq
+fn dbname_conninfo(database: &str) -> String {
+    format!("dbname='{}'", database.replace('\\', "\\\\").replace('\'', "\\'"))
+}
+
+fn restore_args(mode: RestoreMode, database: &str, path: &str) -> Vec<String> {
+    let clean: &[&str] = match mode {
+        RestoreMode::Replace => &["--clean", "--if-exists"],
+        RestoreMode::Recreate => &[],
+    };
+    clean
+        .iter()
+        .chain(&["--no-owner", "--no-acl", "--single-transaction", "--verbose"])
+        .map(|a| a.to_string())
+        .chain(["-d".into(), dbname_conninfo(database), path.into()])
+        .collect()
+}
+
+fn backup_file_name(database: &str) -> String {
+    let safe: String = database
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+    format!("{}-{}.dump", safe, chrono::Local::now().format("%Y%m%d-%H%M%S-%3f"))
+}
+
+// Credentials travel through the environment so they never show up in the process list
+fn pg_command(bin: &str, connection: &ConnectionParams) -> Command {
+    let mut cmd = Command::new(bin);
+    cmd.env("PGHOST", &connection.host)
+        .env("PGPORT", connection.port.to_string())
+        .env("PGUSER", &connection.username)
+        .env("PGCONNECT_TIMEOUT", "10")
+        .env("PGAPPNAME", "puffin")
+        .env_remove("PGPASSWORD")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    if let Some(password) = connection.password.as_deref().filter(|p| !p.is_empty()) {
+        cmd.env("PGPASSWORD", password);
+    }
+    cmd
+}
+
+fn spawn_error(bin: &str, e: std::io::Error) -> PgError {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        return PgError {
+            detail: format!("{} was not found", bin),
+            hint: Some("Install the PostgreSQL client tools and make sure they are on PATH.".into()),
+        };
+    }
+    PgError::new(format!("Failed to start {}: {}", bin, e))
+}
+
+// Error lines say what went wrong; the rest of the tail is only context
+fn failure_detail(tail: &VecDeque<String>) -> String {
+    let errors: Vec<&str> = tail
+        .iter()
+        .filter(|l| l.contains("error:") || l.contains("FATAL:"))
+        .map(String::as_str)
+        .collect();
+    if errors.is_empty() {
+        tail.iter().map(String::as_str).collect::<Vec<_>>().join("\n")
+    } else {
+        errors.join("\n")
+    }
+}
+
+// Forwards stderr to the UI line by line and keeps the tail for the error message
+async fn run_streaming(bin: &str, mut cmd: Command, on_log: &Channel<String>) -> Result<(), PgError> {
+    let mut child = cmd.spawn().map_err(|e| spawn_error(bin, e))?;
+    let mut stderr = BufReader::new(child.stderr.take().expect("stderr is piped"));
+    let mut tail = VecDeque::with_capacity(ERROR_TAIL_LINES);
+    let mut buf = Vec::new();
+
+    // Lossy, so a non-UTF-8 message can't stop the read and leave the child blocked on a full pipe
+    while stderr.read_until(b'\n', &mut buf).await.unwrap_or(0) > 0 {
+        let line = String::from_utf8_lossy(&buf).trim_end().to_string();
+        buf.clear();
+        let _ = on_log.send(line.clone());
+        if tail.len() == ERROR_TAIL_LINES {
+            tail.pop_front();
+        }
+        tail.push_back(line);
+    }
+
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| PgError::new(format!("{} failed: {}", bin, e)))?;
+    if status.success() {
+        return Ok(());
+    }
+    Err(PgError {
+        detail: failure_detail(&tail),
+        hint: Some(format!("{} exited with {}", bin, status)),
+    })
+}
+
+async fn backups_dir(app: &AppHandle) -> Result<PathBuf, PgError> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| PgError::new(e.to_string()))?
+        .join("backups");
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| PgError::new(format!("Could not create {}: {}", dir.display(), e)))?;
+    Ok(dir)
+}
+
+#[tauri::command]
+async fn get_backups_dir(app: AppHandle) -> Result<String, PgError> {
+    Ok(backups_dir(&app).await?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+async fn create_backup(
+    app: AppHandle,
+    connection: ConnectionParams,
+    on_log: Channel<String>,
+) -> Result<BackupFile, PgError> {
+    let path = backups_dir(&app).await?.join(backup_file_name(&connection.database));
+
+    let mut cmd = pg_command("pg_dump", &connection);
+    cmd.args(["-Fc", "--verbose", "-d"])
+        .arg(dbname_conninfo(&connection.database))
+        .arg("-f")
+        .arg(&path);
+
+    if let Err(e) = run_streaming("pg_dump", cmd, &on_log).await {
+        let _ = tokio::fs::remove_file(&path).await;
+        return Err(e);
+    }
+
+    let size_bytes = tokio::fs::metadata(&path).await.map(|m| m.len()).unwrap_or(0);
+    Ok(BackupFile { path: path.to_string_lossy().into_owned(), size_bytes })
+}
+
+// DROP/CREATE DATABASE can't run while connected to the target, nor inside a transaction
+async fn recreate_database(connection: &ConnectionParams, on_log: &Channel<String>) -> Result<(), PgError> {
+    let maintenance_db = if connection.database == "postgres" { "template1" } else { "postgres" };
+    let client = connect(ConnectionParams { database: maintenance_db.into(), ..connection.clone() }).await?;
+    let name = quote_ident(&connection.database);
+
+    for sql in [
+        format!("DROP DATABASE IF EXISTS {} WITH (FORCE)", name),
+        format!("CREATE DATABASE {}", name),
+    ] {
+        let _ = on_log.send(format!("puffin: {}", sql));
+        client.batch_execute(&sql).await.map_err(|e| format_pg_error(&e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn restore_backup(
+    connection: ConnectionParams,
+    path: String,
+    mode: RestoreMode,
+    on_log: Channel<String>,
+) -> Result<(), PgError> {
+    let is_file = tokio::fs::metadata(&path).await.map(|m| m.is_file()).unwrap_or(false);
+    if !is_file {
+        return Err(PgError {
+            detail: format!("Backup file not found: {}", path),
+            hint: Some("It may have been moved or deleted outside Puffin.".into()),
+        });
+    }
+
+    if mode == RestoreMode::Recreate {
+        recreate_database(&connection, &on_log).await?;
+    }
+
+    let mut cmd = pg_command("pg_restore", &connection);
+    cmd.args(restore_args(mode, &connection.database, &path));
+    run_streaming("pg_restore", cmd, &on_log).await
+}
+
+#[tauri::command]
+async fn delete_backup(path: String) -> Result<(), PgError> {
+    match tokio::fs::remove_file(&path).await {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(PgError::new(e.to_string())),
+        _ => Ok(()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -610,7 +831,11 @@ pub fn run() {
             execute_query,
             apply_cell_edits,
             preview_cell_edits,
-            fetch_schema
+            fetch_schema,
+            get_backups_dir,
+            create_backup,
+            restore_backup,
+            delete_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -668,5 +893,29 @@ mod tests {
             preview_update_sql(&update),
             "UPDATE \"public\".\"users\" SET \"name\" = 'O''Brien'::text::text, \"price\" = NULL::text::numeric(10,2) WHERE \"id\" = '1'::text::integer RETURNING \"name\", \"price\""
         );
+    }
+
+    #[test]
+    fn dbname_conninfo_escapes_quotes_and_backslashes() {
+        assert_eq!(dbname_conninfo("app"), "dbname='app'");
+        assert_eq!(dbname_conninfo("a'b\\c=d"), "dbname='a\\'b\\\\c=d'");
+    }
+
+    #[test]
+    fn restore_args_clean_only_when_replacing() {
+        let tail = ["--no-owner", "--no-acl", "--single-transaction", "--verbose", "-d", "dbname='app'", "/x.dump"];
+
+        let replace: Vec<String> = ["--clean", "--if-exists"].iter().chain(&tail).map(|a| a.to_string()).collect();
+        assert_eq!(restore_args(RestoreMode::Replace, "app", "/x.dump"), replace);
+
+        let recreate: Vec<String> = tail.iter().map(|a| a.to_string()).collect();
+        assert_eq!(restore_args(RestoreMode::Recreate, "app", "/x.dump"), recreate);
+    }
+
+    #[test]
+    fn backup_file_name_sanitizes_database() {
+        let name = backup_file_name("my db/../x");
+        assert!(name.starts_with("my_db____x-"));
+        assert!(name.ends_with(".dump"));
     }
 }

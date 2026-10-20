@@ -2,16 +2,10 @@
 import { useRoute, useRouter } from "vue-router"
 import { version } from "../../package.json"
 import Button from "./Button.vue"
+import { NAV_ITEMS, SETTINGS_ITEM } from "../navigation"
 
 const route = useRoute()
 const router = useRouter()
-
-const navItems = [
-  { path: "/connections", label: "Connections", icon: "i-lucide-database", shortcut: 'D' },
-  { path: "/", label: "Console", icon: "i-lucide-terminal", shortcut: 'E' },
-  { path: "/collection", label: "Collection", icon: "i-lucide-bookmark", shortcut: 'C' },
-  { path: "/history", label: "History", icon: "i-lucide-history", shortcut: 'X' },
-]
 
 function navigate(path: string) {
   router.push(path)
@@ -51,7 +45,7 @@ function navigate(path: string) {
     <!-- Navigation Middle -->
     <nav px-4 flex-1 flex flex-col gap-1>
       <Button
-        v-for="item in navItems"
+        v-for="item in NAV_ITEMS"
         :key="item.path"
         :icon="item.icon + ' text-lg'"
         :variant="route.path === item.path ? 'primary' : 'secondary'"
@@ -74,17 +68,17 @@ function navigate(path: string) {
     <!-- Bottom Actions -->
     <div mt-auto p-4 border-t border-gray="800/50">
       <Button
-        icon="i-lucide-settings text-lg"
-        :variant="route.path === '/settings' ? 'primary' : 'secondary'"
-        @click="navigate('/settings')"
+        :icon="SETTINGS_ITEM.icon + ' text-lg'"
+        :variant="route.path === SETTINGS_ITEM.path ? 'primary' : 'secondary'"
+        @click="navigate(SETTINGS_ITEM.path)"
         justify-start
         w-full
         px-4
         py-2
       >
-        Settings
+        {{ SETTINGS_ITEM.label }}
         <div flex-1></div>
-        <span text-xs text-gray-600 w-9>⌘ + S</span>
+        <span text-xs text-gray-600 w-9>⌘ + {{ SETTINGS_ITEM.shortcut }}</span>
       </Button>
     </div>
   </aside>

@@ -1,5 +1,5 @@
 import { ref, readonly, computed } from "vue"
-import { load } from "@tauri-apps/plugin-store"
+import { lazyStore } from "../helpers/storeHelpers"
 
 export type HistoryRetention = "1d" | "1w" | "2w" | "1m" | "1y" | "forever"
 
@@ -56,14 +56,7 @@ const historyMaxCount = ref(DEFAULT_HISTORY_MAX_COUNT)
 const historyRetention = ref<HistoryRetention>(DEFAULT_HISTORY_RETENTION)
 const loaded = ref(false)
 
-let store: Awaited<ReturnType<typeof load>> | null = null
-
-async function getStore() {
-  if (!store) {
-    store = await load(STORE_FILE, { autoSave: true, defaults: {} })
-  }
-  return store
-}
+const getStore = lazyStore(STORE_FILE)
 
 async function persist() {
   const s = await getStore()

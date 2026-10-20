@@ -3,11 +3,13 @@ import Connections from "./pages/Connections.vue"
 import QueryConsole from "./pages/QueryConsole.vue"
 import Collection from "./pages/Collection.vue"
 import History from "./pages/History.vue"
+import Backups from "./pages/Backups.vue"
 import Settings from "./pages/Settings.vue"
 
 const routes = [
   { path: "/", component: QueryConsole },
   { path: "/connections", component: Connections },
+  { path: "/backups", component: Backups },
   { path: "/collection", component: Collection },
   { path: "/history", component: History },
   { path: "/settings", component: Settings },

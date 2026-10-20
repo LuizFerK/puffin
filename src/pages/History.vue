@@ -97,12 +97,7 @@ async function confirmClear() {
         <Button variant="secondary" @click="isDeleteModalOpen = false"
           >Cancel</Button
         >
-        <Button
-          variant="primary"
-          class="!bg-red-500/10 !text-red-400 hover:!bg-red-500/20"
-          @click="confirmDelete"
-          >Delete</Button
-        >
+        <Button variant="danger" @click="confirmDelete">Delete</Button>
       </template>
     </Modal>
 
@@ -123,12 +118,7 @@ async function confirmClear() {
         <Button variant="secondary" @click="isClearModalOpen = false"
           >Cancel</Button
         >
-        <Button
-          variant="primary"
-          class="!bg-red-500/10 !text-red-400 hover:!bg-red-500/20"
-          @click="confirmClear"
-          >Clear All</Button
-        >
+        <Button variant="danger" @click="confirmClear">Clear All</Button>
       </template>
     </Modal>
   </div>

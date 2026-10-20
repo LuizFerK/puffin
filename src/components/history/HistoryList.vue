@@ -27,8 +27,8 @@ defineEmits<{
       <Button
         v-if="queries.length > 0"
         icon="i-lucide-trash"
-        variant="secondary"
-        class="hover:!text-red-400 hover:!bg-red-500/10 px-2!"
+        variant="ghost-danger"
+        class="px-2!"
         @click="$emit('clearAll')"
       />
     </div>

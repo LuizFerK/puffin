@@ -1,7 +1,8 @@
 import { ref, computed } from "vue"
-import { load } from "@tauri-apps/plugin-store"
+import { lazyStore } from "../helpers/storeHelpers"
 import { invoke } from "@tauri-apps/api/core"
 import type { Connection } from "../types"
+import { connectionColor } from "../helpers/connectionHelpers"
 
 const STORE_FILE = "connections.json"
 
@@ -9,14 +10,7 @@ const connections = ref<Connection[]>([])
 const activeConnectionId = ref<string | null>(null)
 const loaded = ref(false)
 
-let store: Awaited<ReturnType<typeof load>> | null = null
-
-async function getStore() {
-  if (!store) {
-    store = await load(STORE_FILE, { autoSave: true, defaults: {} })
-  }
-  return store
-}
+const getStore = lazyStore(STORE_FILE)
 
 async function persist() {
   const s = await getStore()
@@ -44,6 +38,13 @@ const activeConnection = computed(
   () =>
     connections.value.find((c) => c.id === activeConnectionId.value) ?? null,
 )
+
+// Keyed by position in the saved list, so a connection keeps its color on every screen
+const connectionColors = computed(
+  () => new Map(connections.value.map((c, i) => [c.id, connectionColor(i)])),
+)
+
+const colorOf = (conn: Connection) => connectionColors.value.get(conn.id)!
 
 const groupedConnections = computed(() => {
   const groups: Record<string, Connection[]> = {}
@@ -127,6 +128,7 @@ export function useConnectionStore() {
     activeConnectionId,
     activeConnection,
     groupedConnections,
+    colorOf,
     loaded,
     loadConnections,
     addConnection,

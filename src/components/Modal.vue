@@ -14,7 +14,7 @@ const emit = defineEmits<{
 
 <template>
   <Teleport to="body">
-    <Transition name="modal">
+    <Transition name="modal" appear>
       <div v-if="open" fixed inset-0 z-50 flex items-center justify-center>
         <!-- Backdrop -->
         <div
