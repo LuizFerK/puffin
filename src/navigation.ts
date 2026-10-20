@@ -1,3 +1,4 @@
+// @unocss-include: the icon classes below only exist in this .ts file
 // Single source for the sidebar and its Ctrl+Shift+<shortcut> bindings
 export interface NavItem {
   path: string
