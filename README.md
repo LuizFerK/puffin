@@ -23,13 +23,14 @@
 
 ![Puffin query console showing a query and its results](docs/screenshots/01-console.png)
 
-Puffin is a lightweight PostgreSQL GUI built with Tauri, Rust and Vue. It focuses on the day-to-day loop of writing queries, reading results and making quick fixes to data, without the weight of a full database IDE.
+Puffin is a lightweight PostgreSQL GUI built with Tauri, Rust and Vue. It focuses on the day-to-day loop of writing queries, reading results, making quick fixes to data and moving databases around, without the weight of a full database IDE.
 
 ## Features
 
 - **Query console** powered by Monaco, with Ctrl+Enter to run the statement under the cursor and one-key SQL formatting.
 - **Schema-aware autocomplete** for schemas, tables, views, columns (with their types), table aliases, CTEs, functions and SQL keywords.
-- **Inline cell editing**: right-click a cell, edit it in place, review the highlighted changes and apply them all in a single transaction.
+- **Inline cell editing**: right-click a cell, edit it in place, review the highlighted changes and apply them all in a single transaction, after a confirmation that shows how many rows change and the exact SQL that will run.
+- **Backups and restores** with `pg_dump` and `pg_restore`: keep timestamped backups of any connection and restore them into another one, behind a typed confirmation.
 - **Rich type rendering** for numeric, json/jsonb, arrays (including multidimensional), enums, uuid, dates and times, intervals, inet/cidr and bytea.
 - **Copy anything**: a single cell from its context menu, or the whole result set as a pretty table or CSV.
 - **Connection manager** with groups, color-coded cards and encrypted passwords.
@@ -43,23 +44,39 @@ Puffin is a lightweight PostgreSQL GUI built with Tauri, Rust and Vue. It focuse
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/02-inline-editing.png" alt="Editing result cells inline, with pending changes highlighted"></td>
-    <td width="50%"><img src="docs/screenshots/03-autocomplete.png" alt="Autocomplete suggesting columns and their types"></td>
+    <td width="50%"><img src="docs/screenshots/03-apply-preview.png" alt="Apply confirmation showing the row count and the UPDATE statements that will run"></td>
   </tr>
   <tr>
     <td align="center"><sub>Inline editing with pending changes</sub></td>
+    <td align="center"><sub>Apply confirmation with SQL preview</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/04-autocomplete.png" alt="Autocomplete suggesting columns and their types"></td>
+    <td width="50%"><img src="docs/screenshots/05-connections.png" alt="Connections grouped by environment"></td>
+  </tr>
+  <tr>
     <td align="center"><sub>Schema-aware autocomplete</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/04-connections.png" alt="Connections grouped by environment"></td>
-    <td width="50%"><img src="docs/screenshots/05-collection.png" alt="Saved queries with a preview pane"></td>
-  </tr>
-  <tr>
     <td align="center"><sub>Connections</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/06-backups.png" alt="Backups grouped by connection, with details and the live pg_dump log"></td>
+    <td width="50%"><img src="docs/screenshots/07-new-backup.png" alt="New backup dialog listing connection groups"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Backups with a live log</sub></td>
+    <td align="center"><sub>Starting a backup</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/08-restore.png" alt="Restore confirmation asking for the target database name"></td>
+    <td width="50%"><img src="docs/screenshots/09-collection.png" alt="Saved queries with a preview pane"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Restore confirmation</sub></td>
     <td align="center"><sub>Collection</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/06-history.png" alt="Query history with a preview pane"></td>
-    <td width="50%"><img src="docs/screenshots/07-settings.png" alt="Settings for history and syntax highlighting"></td>
+    <td width="50%"><img src="docs/screenshots/10-history.png" alt="Query history with a preview pane"></td>
+    <td width="50%"><img src="docs/screenshots/11-settings.png" alt="Settings for history and syntax highlighting"></td>
   </tr>
   <tr>
     <td align="center"><sub>History</sub></td>
@@ -111,6 +128,7 @@ Puffin is built from source on your machine, so the first install takes a few mi
 | <kbd>Ctrl</kbd> + <kbd>S</kbd> | Format the query (inside the editor) |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd> | Connections |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd> | Console |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> | Backups |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd> | Collection |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd> | History |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> | Settings |
@@ -120,9 +138,20 @@ Puffin is built from source on your machine, so the first install takes a few mi
 
 ### Editing data
 
-Right-click any cell in the results and choose **Edit**. Press <kbd>Enter</kbd> to confirm or <kbd>Esc</kbd> to cancel; the context menu also offers **Set NULL** for nullable columns and **Revert** for modified cells. Changes stay highlighted until you click **Apply** in the results header, which writes them all in one transaction, or **Discard**.
+Right-click any cell in the results and choose **Edit**. Press <kbd>Enter</kbd> to confirm or <kbd>Esc</kbd> to cancel; the context menu also offers **Set NULL** for nullable columns and **Revert** for modified cells. Changes stay highlighted until you click **Apply** or **Discard** in the results header. **Apply** first asks for confirmation, showing how many rows will be updated and in which tables; **Preview SQL** reveals the exact statements, with their values inlined. Confirming writes every change in one transaction, and if any row no longer matches, nothing is written.
 
 A cell is editable when its column comes from a table (not a view or an expression) and the table's full primary key is part of the result. When a cell can't be edited, the menu tells you why. Values are sent as text and cast by PostgreSQL, so any input format PostgreSQL accepts for the column type works.
+
+### Backups and restores
+
+The **Backups** page lists every backup grouped by connection, newest first, with its creation date, size and how long it took.
+
+- **New backup** asks for a connection group, then a connection, and runs `pg_dump` in custom format. The output streams into a live log, and the file is kept in Puffin's data folder. You can keep as many backups of a connection as you like.
+- **Restore...** walks through three steps: the target connection, the mode and a confirmation where you type the target database's name. The source connection is flagged so it is not overwritten by accident.
+  - **Replace objects** drops and recreates the objects in the backup and leaves anything else in the database untouched.
+  - **Recreate database** drops the whole database, disconnecting open sessions, and restores into a fresh one. It needs PostgreSQL 13 or newer and permission to create databases.
+
+Both modes run `pg_restore` in a single transaction, so a failed restore applies nothing. Passwords are passed to `pg_dump` and `pg_restore` through the environment, never on the command line. The Nix package ships the PostgreSQL 18 client tools, which can back up and restore any older server.
 
 ### Results
 
@@ -149,6 +178,8 @@ Puffin keeps its data as JSON files in `~/.local/share/puffin/`:
 | `connections.json` | Saved connections and the active one |
 | `queries.json` | Collection, history and the console's current text |
 | `settings.json` | Settings |
+| `backups.json` | Backup metadata (connection, date, size, duration) |
+| `backups/` | The backup files, in `pg_dump` custom format |
 
 Connection passwords are encrypted with AES-256-GCM before they are written to disk. The key is embedded in the application, so this keeps passwords out of plain sight but does not protect them from someone who has access to your files and the Puffin binary.
 
@@ -157,7 +188,7 @@ Connection passwords are encrypted with AES-256-GCM before they are written to d
 | Layer | Technologies |
 | --- | --- |
 | Desktop shell | [Tauri 2](https://tauri.app) |
-| Backend | Rust, [tokio-postgres](https://github.com/sfackler/rust-postgres) |
+| Backend | Rust, [tokio-postgres](https://github.com/sfackler/rust-postgres), `pg_dump` / `pg_restore` |
 | Frontend | [Vue 3](https://vuejs.org), TypeScript, [Vite](https://vite.dev) |
 | Editor | [Monaco Editor](https://microsoft.github.io/monaco-editor/), [sql-formatter](https://github.com/sql-formatter-org/sql-formatter) |
 | Styling | [UnoCSS](https://unocss.dev), [Lucide](https://lucide.dev) icons |
@@ -197,11 +228,11 @@ src/                 Vue frontend
   components/        UI components, grouped by page
   composables/       Shared state and logic (autocomplete, result edits)
   helpers/           Pure functions, covered by unit tests
-  pages/             Connections, Console, Collection, History, Settings
+  pages/             Connections, Console, Backups, Collection, History, Settings
   sql/completion/    SQL tokenizer and autocomplete engine
   stores/            Persistent state backed by the Tauri store plugin
 src-tauri/           Rust backend
-  src/lib.rs         Tauri commands: queries, schema, cell edits
+  src/lib.rs         Tauri commands: queries, schema, cell edits, backups
   src/decode.rs      PostgreSQL binary value decoding
 test/                Frontend unit tests
 ```
