@@ -1,12 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "puffin",
+  "productName": "Puffin",
+  "mainBinaryName": "puffin",
   "version": "1.0.0",
   "identifier": "puffin",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -25,6 +26,8 @@
   "bundle": {
     "active": true,
     "targets": ["deb"],
+    "category": "DeveloperTool",
+    "shortDescription": "PostgreSQL GUI",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

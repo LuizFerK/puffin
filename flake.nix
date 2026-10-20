@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -8,6 +8,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        inherit (pkgs) lib;
+
+        pnpm = pkgs.pnpm_11;
 
         # Shared runtime dependencies
         runtimeLibs = with pkgs; [
@@ -20,26 +23,68 @@
           openssl
         ];
 
-        # Environment variables needed for both running and developing
-        shellVars = ''
-          export WEBKIT_DISABLE_DMABUF_RENDERER=1
-          export GIO_MODULE_DIR="${pkgs.glib-networking}/lib/gio/modules/"
-          export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:''${XDG_DATA_DIRS:-}"
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}:''${LD_LIBRARY_PATH:-}"
-        '';
-      in
-      {
-        # 1. This is for 'nix run' (pointing to your pre-built app)
-        packages.default = pkgs.writeShellApplication {
-          name = "puffin";
-          runtimeInputs = runtimeLibs;
-          text = ''
-            ${shellVars}
-            exec /home/luiz/apps/puffin/src-tauri/target/release/puffin "$@"
-          '';
+        # Only what the build reads, so docs or test edits don't trigger a rebuild
+        src = lib.fileset.toSource {
+          root = ./.;
+          fileset = lib.fileset.unions [
+            ./index.html
+            ./package.json
+            ./pnpm-lock.yaml
+            ./pnpm-workspace.yaml
+            ./tsconfig.json
+            ./tsconfig.node.json
+            ./uno.config.ts
+            ./vite.config.ts
+            ./public
+            ./src
+            (lib.fileset.difference ./src-tauri (lib.fileset.maybeMissing ./src-tauri/target))
+          ];
         };
 
-        # 2. This is for 'nix develop' (restoring your tools)
+        puffin = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
+          pname = "puffin";
+          version = (lib.importTOML ./src-tauri/Cargo.toml).package.version;
+          inherit src;
+
+          # Bump with the hash Nix reports whenever pnpm-lock.yaml changes
+          pnpmDeps = pkgs.fetchPnpmDeps {
+            inherit (finalAttrs) pname version src;
+            inherit pnpm;
+            fetcherVersion = 4;
+            hash = "sha256-0UDE4w8O15hztp84wLKgy2yzxX0KZ3a1t1++P/qqupM=";
+          };
+
+          cargoRoot = "src-tauri";
+          buildAndTestSubdir = finalAttrs.cargoRoot;
+          cargoLock.lockFile = ./src-tauri/Cargo.lock;
+
+          nativeBuildInputs = with pkgs; [
+            nodejs
+            pnpm
+            pnpmConfigHook
+            cargo-tauri.hook
+            pkg-config
+            wrapGAppsHook3
+          ];
+
+          buildInputs = runtimeLibs;
+
+          preFixup = ''
+            gappsWrapperArgs+=(--set WEBKIT_DISABLE_DMABUF_RENDERER 1)
+          '';
+
+          meta = {
+            description = "PostgreSQL GUI";
+            homepage = "https://github.com/LuizFerK/puffin";
+            license = lib.licenses.mit;
+            mainProgram = "puffin";
+            platforms = lib.platforms.linux;
+          };
+        });
+      in
+      {
+        packages.default = puffin;
+
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
             rustc
@@ -48,12 +93,17 @@
             pkg-config
             gobject-introspection
             nodejs
-            bun
+            pnpm
           ];
-          
+
           buildInputs = runtimeLibs;
-          
-          shellHook = shellVars;
+
+          shellHook = ''
+            export WEBKIT_DISABLE_DMABUF_RENDERER=1
+            export GIO_MODULE_DIR="${pkgs.glib-networking}/lib/gio/modules/"
+            export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:''${XDG_DATA_DIRS:-}"
+            export LD_LIBRARY_PATH="${lib.makeLibraryPath runtimeLibs}:''${LD_LIBRARY_PATH:-}"
+          '';
         };
       }
     );
