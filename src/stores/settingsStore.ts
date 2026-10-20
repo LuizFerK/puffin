@@ -48,12 +48,14 @@ const DEFAULT_SYNTAX_COLORS: SyntaxColors = {
 
 const DEFAULT_HISTORY_MAX_COUNT = 50
 const DEFAULT_HISTORY_RETENTION: HistoryRetention = "forever"
+const DEFAULT_VIM_MODE = false
 
 const STORE_FILE = "settings.json"
 
 const syntaxColors = ref<SyntaxColors>({ ...DEFAULT_SYNTAX_COLORS })
 const historyMaxCount = ref(DEFAULT_HISTORY_MAX_COUNT)
 const historyRetention = ref<HistoryRetention>(DEFAULT_HISTORY_RETENTION)
+const vimMode = ref(DEFAULT_VIM_MODE)
 const loaded = ref(false)
 
 const getStore = lazyStore(STORE_FILE)
@@ -63,6 +65,7 @@ async function persist() {
   await s.set("syntaxColors", syntaxColors.value)
   await s.set("historyMaxCount", historyMaxCount.value)
   await s.set("historyRetention", historyRetention.value)
+  await s.set("vimMode", vimMode.value)
 }
 
 async function loadSettings() {
@@ -82,6 +85,11 @@ async function loadSettings() {
   const rawRetention = await s.get<HistoryRetention>("historyRetention")
   if (rawRetention) {
     historyRetention.value = rawRetention
+  }
+
+  const rawVimMode = await s.get<boolean>("vimMode")
+  if (rawVimMode != null) {
+    vimMode.value = rawVimMode
   }
 
   loaded.value = true
@@ -119,10 +127,18 @@ async function resetHistorySettings() {
   await persist()
 }
 
+async function updateVimMode(enabled: boolean) {
+  vimMode.value = enabled
+  await persist()
+}
+
+const isEditorDefault = computed(() => vimMode.value === DEFAULT_VIM_MODE)
+
 async function resetAllSettings() {
   syntaxColors.value = { ...DEFAULT_SYNTAX_COLORS }
   historyMaxCount.value = DEFAULT_HISTORY_MAX_COUNT
   historyRetention.value = DEFAULT_HISTORY_RETENTION
+  vimMode.value = DEFAULT_VIM_MODE
   await persist()
 }
 
@@ -133,6 +149,8 @@ export function useSettingsStore() {
     historyMaxCount,
     historyRetention,
     isHistoryDefault,
+    vimMode,
+    isEditorDefault,
     loaded,
     loadSettings,
     updateSyntaxColor,
@@ -140,6 +158,7 @@ export function useSettingsStore() {
     updateHistoryMaxCount,
     updateHistoryRetention,
     resetHistorySettings,
+    updateVimMode,
     resetAllSettings,
   }
 }

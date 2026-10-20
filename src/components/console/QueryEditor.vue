@@ -6,6 +6,8 @@ import { useQueryStore } from "../../stores/queryStore"
 import { useQuerySelector } from "../../composables/useQuerySelector"
 import { useSchemaCompletion } from "../../composables/useSchemaCompletion"
 import { useSettingsStore } from "../../stores/settingsStore"
+import { initVimMode, StatusBar } from "monaco-vim"
+import VimStatusBar, { type VimModeState } from "./VimStatusBar.vue"
 
 self.MonacoEnvironment = {
   getWorker() {
@@ -28,9 +30,20 @@ const editorContainer = ref<HTMLElement | null>(null)
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 
 const { schemaInfo } = useQueryStore()
-const { syntaxColors } = useSettingsStore()
+const { syntaxColors, vimMode } = useSettingsStore()
 let querySelector: ReturnType<typeof useQuerySelector> | null = null
 let schemaCompletion: ReturnType<typeof useSchemaCompletion> | null = null
+
+const vimStatusBar = ref<InstanceType<typeof VimStatusBar> | null>(null)
+const vimModeState = ref<VimModeState>({ mode: "normal" })
+let vim: { dispose(): void } | null = null
+
+// The mode badge is rendered by VimStatusBar; the rest of monaco-vim's status bar stays as is
+class ModeAwareStatusBar extends StatusBar {
+  setMode(ev: VimModeState) {
+    vimModeState.value = ev
+  }
+}
 
 function applyTheme() {
   const colors = syntaxColors.value
@@ -57,6 +70,12 @@ function applyTheme() {
     },
   })
   monaco.editor.setTheme("puffin-dark")
+}
+
+function setVimMode(enabled: boolean) {
+  vim?.dispose()
+  const container = vimStatusBar.value?.container
+  vim = enabled && editor && container ? initVimMode(editor, container, ModeAwareStatusBar) : null
 }
 
 onMounted(() => {
@@ -98,10 +117,14 @@ onMounted(() => {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
     emit('formatQuery')
   })
+
+  setVimMode(vimMode.value)
 })
 
 // Re-apply theme whenever user changes syntax colors
 watch(syntaxColors, () => applyTheme(), { deep: true })
+
+watch(vimMode, setVimMode)
 
 function getQueryAtCursor(): string | null {
   return querySelector?.getQueryAtCursor() ?? null
@@ -119,6 +142,8 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  // vim hooks into the editor's listeners, so it goes before the editor
+  vim?.dispose()
   querySelector?.dispose()
   schemaCompletion?.dispose()
   if (editor) {
@@ -128,8 +153,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="w-full" :style="{ height: height + 'px' }" bg="[#0d1117]">
-    <div ref="editorContainer" class="w-full h-full"></div>
+  <div class="w-full flex flex-col" :style="{ height: height + 'px' }" bg="[#0d1117]">
+    <div ref="editorContainer" class="w-full flex-1 min-h-0"></div>
+
+    <VimStatusBar v-show="vimMode" ref="vimStatusBar" :mode="vimModeState" />
   </div>
 </template>
 

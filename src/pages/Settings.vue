@@ -3,9 +3,10 @@ import { onMounted, computed } from "vue"
 import Button from "../components/Button.vue"
 import SyntaxHighlighting from "../components/settings/SyntaxHighlighting.vue"
 import HistorySettings from "../components/settings/HistorySettings.vue"
+import EditorSettings from "../components/settings/EditorSettings.vue"
 import { useSettingsStore } from "../stores/settingsStore"
 
-const { loadSettings, isHistoryDefault, resetAllSettings } = useSettingsStore()
+const { loadSettings, isHistoryDefault, isEditorDefault, resetAllSettings } = useSettingsStore()
 const { syntaxColors, defaultSyntaxColors } = useSettingsStore()
 
 onMounted(() => loadSettings())
@@ -16,7 +17,7 @@ const isAllDefault = computed(() => {
       defaultSyntaxColors.value,
     ) as (keyof typeof defaultSyntaxColors.value)[]
   ).every((k) => syntaxColors.value[k] === defaultSyntaxColors.value[k])
-  return colorsDefault && isHistoryDefault.value
+  return colorsDefault && isHistoryDefault.value && isEditorDefault.value
 })
 </script>
 
@@ -46,6 +47,7 @@ const isAllDefault = computed(() => {
       <!-- TODO: Formatter config (indentation, upper or lower cases) -->
       <HistorySettings />
       <SyntaxHighlighting />
+      <EditorSettings />
 
       <!-- Reset All -->
       <div v-if="!isAllDefault" border-t border-gray-800 pt-6 flex justify-end>
