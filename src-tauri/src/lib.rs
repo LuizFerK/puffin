@@ -424,14 +424,19 @@ fn row_to_json(row: &tokio_postgres::Row) -> Vec<serde_json::Value> {
 }
 
 async fn connect(connection: ConnectionParams) -> Result<tokio_postgres::Client, PgError> {
-    let password = connection.password.unwrap_or_default();
+    // Built field by field so empty passwords and values with spaces need no escaping
+    let mut config = tokio_postgres::Config::new();
+    config
+        .host(&connection.host)
+        .port(connection.port)
+        .dbname(&connection.database)
+        .user(&connection.username);
+    if let Some(password) = connection.password.filter(|p| !p.is_empty()) {
+        config.password(password);
+    }
 
-    let conn_string = format!(
-        "host={} port={} dbname={} user={} password={}",
-        connection.host, connection.port, connection.database, connection.username, password
-    );
-
-    let (client, conn) = tokio_postgres::connect(&conn_string, NoTls)
+    let (client, conn) = config
+        .connect(NoTls)
         .await
         .map_err(|e| format_pg_error(&e))?;
 
