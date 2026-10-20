@@ -33,10 +33,11 @@ defineEmits<{
     "
   >
     <div i-lucide-bookmark text-yellow="600/80" mt-0.5></div>
-    <div flex-1 flex flex-col gap-1>
-      <span text-sm font-medium text-gray-200>{{ query.name }}</span>
-      <div text-xs flex items-center gap-1>
+    <div flex-1 flex flex-col gap-1 min-w-0>
+      <span text-sm font-medium text-gray-200 truncate>{{ query.name }}</span>
+      <div text-xs flex items-center gap-1 min-w-0 whitespace-nowrap>
         <span
+          truncate
           px-1
           pt-0.5
           rounded
@@ -47,7 +48,7 @@ defineEmits<{
           border-gray-700
           >{{ query.connectionName }}</span
         >
-        <span text-gray-600 font-mono text-xs mt-0.5>{{ query.date }}</span>
+        <span shrink-0 text-gray-600 font-mono text-xs mt-0.5>{{ query.date }}</span>
       </div>
     </div>
 
