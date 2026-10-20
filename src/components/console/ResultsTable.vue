@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed, inject, shallowRef } from "vue"
 import type { CellValue, ResultColumn } from "../../types"
-import { editorText, formatCellValue, parseCellKey } from "../../helpers/cellHelpers"
+import {
+  compactViewerText,
+  editorText,
+  parseCellKey,
+  previewCellValue,
+  viewerText,
+} from "../../helpers/cellHelpers"
 import { RESULT_EDITS_KEY } from "../../composables/useResultEdits"
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu.vue"
 import ResultsCellEditor from "./ResultsCellEditor.vue"
+import ResultsCellViewer from "./ResultsCellViewer.vue"
 
 const props = defineProps<{
   columnMeta: ResultColumn[]
@@ -15,10 +22,11 @@ const emit = defineEmits<{
   "copy-cell": [e: MouseEvent, value: unknown]
 }>()
 
-const { pending, editing, readOnlyReasons, startEdit, cancelEdit, commit, setNull, revert } =
+const { pending, editing, readOnlyReasons, startEdit, cancelEdit, commit, setCell, setNull, revert } =
   inject(RESULT_EDITS_KEY)!
 
 const menu = shallowRef<{ event: MouseEvent; row: number; col: number } | null>(null)
+const viewing = shallowRef<{ row: number; col: number } | null>(null)
 
 // Pending edits indexed by row, so v-memo only re-renders the rows they touch
 const pendingByRow = computed(() => {
@@ -87,12 +95,49 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     })
   }
 
+  items.push({
+    label: readOnly ? "View" : "View and Edit",
+    icon: "i-lucide-maximize-2",
+    action: () => (viewing.value = { row, col }),
+  })
+
   return items
 })
 
 function openMenu(event: MouseEvent, row: number, col: number) {
   if (editingCol(row) === col) return
   menu.value = { event, row, col }
+}
+
+// Cmd on macOS, where ctrl+click is a right click and opens the context menu instead
+function onCellClick(event: MouseEvent, row: number, col: number) {
+  if (event.ctrlKey || event.metaKey) viewing.value = { row, col }
+}
+
+const viewer = computed(() => {
+  const target = viewing.value
+  if (!target) return null
+  const { row, col } = target
+  const { name, type_name } = props.columnMeta[col]
+  const value = displayedValue(row, col)
+  const text = viewerText(value, type_name, isModified(row, col))
+  const readOnly = readOnlyReasons.value[col] ?? null
+  const nullable = !props.columnMeta[col].source?.not_null
+  return { row, col, name, type_name, value, text, readOnly, nullable }
+})
+
+function saveViewer(text: string) {
+  const target = viewer.value
+  if (!target) return
+  setCell(target.row, target.col, compactViewerText(text, target.type_name))
+  viewing.value = null
+}
+
+function setViewerNull() {
+  const target = viewer.value
+  if (!target) return
+  setNull(target.row, target.col)
+  viewing.value = null
 }
 </script>
 
@@ -153,17 +198,15 @@ function openMenu(event: MouseEvent, row: number, col: number) {
               v-else
               py-2.5
               px-4
-              max-w-xs
-              truncate
-              whitespace-nowrap
-              overflow-hidden
               border-l
               border-gray="800/10"
               hover:bg-gray="800/20"
               :class="cellClass(i, j)"
+              @click="onCellClick($event, i, j)"
               @contextmenu.prevent="openMenu($event, i, j)"
             >
-              {{ formatCellValue(displayedValue(i, j)) }}
+              <!-- max-width is ignored on auto-layout table cells, so the wrapper caps the width -->
+              <div max-w-xs truncate>{{ previewCellValue(displayedValue(i, j)) }}</div>
             </td>
           </template>
         </tr>
@@ -177,6 +220,20 @@ function openMenu(event: MouseEvent, row: number, col: number) {
       :y="menu.event.clientY"
       :items="menuItems"
       @close="menu = null"
+    />
+
+    <ResultsCellViewer
+      :open="viewer !== null"
+      :column-name="viewer?.name ?? ''"
+      :type-name="viewer?.type_name ?? ''"
+      :initial-text="viewer?.text ?? ''"
+      :is-null="viewer?.value === null"
+      :nullable="viewer?.nullable ?? false"
+      :read-only="viewer?.readOnly ?? null"
+      @copy="(e) => emit('copy-cell', e, viewer?.value ?? null)"
+      @save="saveViewer"
+      @set-null="setViewerNull"
+      @close="viewing = null"
     />
   </div>
 </template>
