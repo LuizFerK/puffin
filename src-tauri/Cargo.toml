@@ -1,8 +1,9 @@
 [package]
 name = "puffin"
 version = "1.0.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "PostgreSQL GUI"
+authors = ["LuizFerK"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
