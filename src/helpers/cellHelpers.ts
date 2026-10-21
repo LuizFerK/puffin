@@ -101,6 +101,8 @@ export function viewerText(value: CellValue, typeName: string, pgText = false): 
 }
 
 // Compacts JSON back to what editorText produces, so an untouched viewer save isn't a change
+// NOTE(LuizFerK): the JSON.parse round-trip is lossy (ints above 2^53, 1.10 -> 1.1, duplicate
+// keys in json), unlike the inline editor, and canSave already blocks untouched saves
 export const compactViewerText = (text: string, typeName: string): string =>
   isJsonType(typeName) ? reformatJson(text) : text
 

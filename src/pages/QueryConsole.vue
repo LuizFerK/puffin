@@ -284,7 +284,7 @@ async function onFormatQuery() {
       <div
         v-if="copyTooltip.visible"
         fixed
-       z-60
+        z-60
         px-2
         py-1
         rounded
