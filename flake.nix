@@ -54,7 +54,7 @@
             inherit (finalAttrs) pname version src;
             inherit pnpm;
             fetcherVersion = 4;
-            hash = "sha256-0UDE4w8O15hztp84wLKgy2yzxX0KZ3a1t1++P/qqupM=";
+            hash = "sha256-9pKGCjCCmIzjnlfmfKAyyWsLR60I33WOdZLy7n6zWdI=";
           };
 
           cargoRoot = "src-tauri";
