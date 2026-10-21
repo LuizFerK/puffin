@@ -134,6 +134,7 @@ export function useResultEdits(results: Ref<QueryResult | null>) {
     startEdit,
     cancelEdit,
     commit,
+    setCell,
     setNull,
     revert,
     discardAll,

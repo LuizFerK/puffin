@@ -3,8 +3,10 @@ import {
   buildRowUpdates,
   cellKey,
   editorText,
+  compactViewerText,
   toPgText,
   validateCellText,
+  viewerText,
 } from "../../src/helpers/cellHelpers"
 import type { ColumnSource, QueryResult, ResultColumn } from "../../src/types"
 
@@ -167,5 +169,43 @@ describe("buildRowUpdates", () => {
     const { updates } = buildRowUpdates(joined, new Map([[cellKey(1, 0), "5"]]))
     expect(updates[0].key[0].value).toBe("9007199254740994")
     expect(updates[0].set[0].value).toBe("5")
+  })
+})
+
+describe("viewerText", () => {
+  it("pretty-prints json values", () => {
+    expect(viewerText({ a: [1, 2] }, "jsonb")).toBe('{\n  "a": [\n    1,\n    2\n  ]\n}')
+  })
+
+  it("keeps json string scalars quoted", () => {
+    expect(viewerText("123", "json")).toBe('"123"')
+  })
+
+  it("pretty-prints pending json edits", () => {
+    expect(viewerText('{"a":1}', "jsonb", true)).toBe('{\n  "a": 1\n}')
+  })
+
+  it("shows invalid pending json as typed", () => {
+    expect(viewerText("{oops", "jsonb", true)).toBe("{oops")
+  })
+
+  it("uses Postgres input syntax for other types", () => {
+    expect(viewerText([1, null], "_int4")).toBe("{1,NULL}")
+    expect(viewerText("{1,2}", "_int4", true)).toBe("{1,2}")
+  })
+
+  it("starts NULL cells empty", () => {
+    expect(viewerText(null, "text")).toBe("")
+  })
+})
+
+describe("compactViewerText", () => {
+  it("round-trips untouched json to editorText", () => {
+    const value = { a: [1, "x"], b: null }
+    expect(compactViewerText(viewerText(value, "jsonb"), "jsonb")).toBe(editorText(value, "jsonb"))
+  })
+
+  it("leaves other types alone", () => {
+    expect(compactViewerText(" {1, 2} ", "_int4")).toBe(" {1, 2} ")
   })
 })

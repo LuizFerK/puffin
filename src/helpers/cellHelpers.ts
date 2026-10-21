@@ -30,6 +30,14 @@ export function formatCellValue(value: CellValue): string {
   return String(value)
 }
 
+const PREVIEW_MAX = 200
+
+// Table cells only show a few hundred chars, so huge values are cut before reaching the DOM
+export function previewCellValue(value: CellValue): string {
+  const text = formatCellValue(value)
+  return text.length > PREVIEW_MAX ? `${text.slice(0, PREVIEW_MAX)}…` : text
+}
+
 // --- Inline editing ---
 
 export type PendingEdits = ReadonlyMap<string, string | null>
@@ -73,6 +81,28 @@ export function toPgText(value: CellValue, typeName: string): string | null {
 
 export const editorText = (value: CellValue, typeName: string): string =>
   toPgText(value, typeName) ?? ""
+
+const isJsonType = (typeName: string) => typeName === "json" || typeName === "jsonb"
+
+function reformatJson(text: string, indent?: number): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, indent)
+  } catch {
+    return text
+  }
+}
+
+// Editable text for the cell viewer: Postgres input syntax, with JSON pretty-printed.
+// Pending edits already hold Postgres text (pgText), so only JSON needs reformatting.
+export function viewerText(value: CellValue, typeName: string, pgText = false): string {
+  if (value === null) return ""
+  if (pgText) return isJsonType(typeName) ? reformatJson(value as string, 2) : (value as string)
+  return isJsonType(typeName) ? JSON.stringify(value, null, 2) : editorText(value, typeName)
+}
+
+// Compacts JSON back to what editorText produces, so an untouched viewer save isn't a change
+export const compactViewerText = (text: string, typeName: string): string =>
+  isJsonType(typeName) ? reformatJson(text) : text
 
 const INTEGER = /^[+-]?\d+$/
 const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i

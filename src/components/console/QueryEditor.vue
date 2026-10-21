@@ -2,14 +2,16 @@
 import { ref, onMounted, onBeforeUnmount, watch } from "vue"
 import * as monaco from "monaco-editor"
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker"
+import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker"
 import { useQueryStore } from "../../stores/queryStore"
 import { useQuerySelector } from "../../composables/useQuerySelector"
 import { useSchemaCompletion } from "../../composables/useSchemaCompletion"
 import { useSettingsStore } from "../../stores/settingsStore"
 
 self.MonacoEnvironment = {
-  getWorker() {
-    return new editorWorker()
+  // The cell viewer edits JSON, whose language service runs in its own worker
+  getWorker(_, label) {
+    return label === "json" ? new jsonWorker() : new editorWorker()
   },
 }
 
