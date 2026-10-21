@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Instant;
 use tauri::{ipc::Channel, AppHandle, Manager};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use tokio_postgres::{types::Type, NoTls};
 
 mod decode;
@@ -616,6 +616,10 @@ async fn fetch_schema(connection: ConnectionParams) -> Result<SchemaInfo, PgErro
 // Lines kept from a failed pg_dump/pg_restore to explain the failure
 const ERROR_TAIL_LINES: usize = 20;
 
+// pg_restore emits this unconditionally, but the setting only exists from PostgreSQL 17 on
+const TRANSACTION_TIMEOUT_SET: &[u8] = b"SET transaction_timeout = 0;\n";
+const TRANSACTION_TIMEOUT_MIN_VERSION: i32 = 170_000;
+
 #[derive(Deserialize, Clone, Copy, PartialEq, Debug)]
 #[serde(rename_all = "lowercase")]
 enum RestoreMode {
@@ -637,7 +641,7 @@ fn dbname_conninfo(database: &str) -> String {
     format!("dbname='{}'", database.replace('\\', "\\\\").replace('\'', "\\'"))
 }
 
-fn restore_args(mode: RestoreMode, database: &str, path: &str) -> Vec<String> {
+fn restore_flags(mode: RestoreMode) -> Vec<String> {
     let clean: &[&str] = match mode {
         RestoreMode::Replace => &["--clean", "--if-exists"],
         RestoreMode::Recreate => &[],
@@ -646,7 +650,28 @@ fn restore_args(mode: RestoreMode, database: &str, path: &str) -> Vec<String> {
         .iter()
         .chain(&["--no-owner", "--no-acl", "--single-transaction", "--verbose"])
         .map(|a| a.to_string())
+        .collect()
+}
+
+fn restore_args(mode: RestoreMode, database: &str, path: &str) -> Vec<String> {
+    restore_flags(mode)
+        .into_iter()
         .chain(["-d".into(), dbname_conninfo(database), path.into()])
+        .collect()
+}
+
+fn script_restore_args(mode: RestoreMode, path: &str) -> Vec<String> {
+    restore_flags(mode)
+        .into_iter()
+        .chain(["-f".into(), "-".into(), path.into()])
+        .collect()
+}
+
+fn psql_args(database: &str) -> Vec<String> {
+    ["-X", "-q", "-v", "ON_ERROR_STOP=1", "-d"]
+        .iter()
+        .map(|a| a.to_string())
+        .chain([dbname_conninfo(database)])
         .collect()
 }
 
@@ -691,7 +716,7 @@ fn spawn_error(bin: &str, e: std::io::Error) -> PgError {
 fn failure_detail(tail: &VecDeque<String>) -> String {
     let errors: Vec<&str> = tail
         .iter()
-        .filter(|l| l.contains("error:") || l.contains("FATAL:"))
+        .filter(|l| l.contains("error:") || l.contains("ERROR:") || l.contains("FATAL:"))
         .map(String::as_str)
         .collect();
     if errors.is_empty() {
@@ -702,9 +727,8 @@ fn failure_detail(tail: &VecDeque<String>) -> String {
 }
 
 // Forwards stderr to the UI line by line and keeps the tail for the error message
-async fn run_streaming(bin: &str, mut cmd: Command, on_log: &Channel<String>) -> Result<(), PgError> {
-    let mut child = cmd.spawn().map_err(|e| spawn_error(bin, e))?;
-    let mut stderr = BufReader::new(child.stderr.take().expect("stderr is piped"));
+async fn forward_stderr(stderr: ChildStderr, on_log: &Channel<String>) -> VecDeque<String> {
+    let mut stderr = BufReader::new(stderr);
     let mut tail = VecDeque::with_capacity(ERROR_TAIL_LINES);
     let mut buf = Vec::new();
 
@@ -718,7 +742,10 @@ async fn run_streaming(bin: &str, mut cmd: Command, on_log: &Channel<String>) ->
         }
         tail.push_back(line);
     }
+    tail
+}
 
+async fn wait_child(bin: &str, mut child: Child, tail: VecDeque<String>) -> Result<(), PgError> {
     let status = child
         .wait()
         .await
@@ -730,6 +757,67 @@ async fn run_streaming(bin: &str, mut cmd: Command, on_log: &Channel<String>) ->
         detail: failure_detail(&tail),
         hint: Some(format!("{} exited with {}", bin, status)),
     })
+}
+
+async fn run_streaming(bin: &str, mut cmd: Command, on_log: &Channel<String>) -> Result<(), PgError> {
+    let mut child = cmd.spawn().map_err(|e| spawn_error(bin, e))?;
+    let tail = forward_stderr(child.stderr.take().expect("stderr is piped"), on_log).await;
+    wait_child(bin, child, tail).await
+}
+
+// Only the preamble is filtered: past it, COPY data could legitimately contain the same line
+async fn pipe_script(script: ChildStdout, mut input: ChildStdin) -> std::io::Result<()> {
+    let mut script = BufReader::new(script);
+    let mut line = Vec::new();
+    while script.read_until(b'\n', &mut line).await? > 0 {
+        if line == TRANSACTION_TIMEOUT_SET {
+            break;
+        }
+        input.write_all(&line).await?;
+        line.clear();
+    }
+    tokio::io::copy_buf(&mut script, &mut input).await?;
+    Ok(())
+}
+
+// Restores through `pg_restore -f - | psql` so the transaction_timeout line can be dropped
+async fn restore_through_psql(
+    connection: &ConnectionParams,
+    mode: RestoreMode,
+    path: &str,
+    on_log: &Channel<String>,
+) -> Result<(), PgError> {
+    let mut restore_cmd = pg_command("pg_restore", connection);
+    restore_cmd.args(script_restore_args(mode, path)).stdout(Stdio::piped());
+    let mut psql_cmd = pg_command("psql", connection);
+    psql_cmd.args(psql_args(&connection.database)).stdin(Stdio::piped());
+
+    let mut restore = restore_cmd.spawn().map_err(|e| spawn_error("pg_restore", e))?;
+    let mut psql = psql_cmd.spawn().map_err(|e| spawn_error("psql", e))?;
+
+    // A broken pipe here means psql stopped early, and its own exit status explains why
+    let (_, restore_tail, psql_tail) = tokio::join!(
+        pipe_script(
+            restore.stdout.take().expect("stdout is piped"),
+            psql.stdin.take().expect("stdin is piped"),
+        ),
+        forward_stderr(restore.stderr.take().expect("stderr is piped"), on_log),
+        forward_stderr(psql.stderr.take().expect("stderr is piped"), on_log),
+    );
+
+    wait_child("psql", psql, psql_tail).await?;
+    wait_child("pg_restore", restore, restore_tail).await
+}
+
+async fn server_version_num(connection: &ConnectionParams) -> Result<i32, PgError> {
+    let client = connect(connection.clone()).await?;
+    let row = client
+        .query_one("SHOW server_version_num", &[])
+        .await
+        .map_err(|e| format_pg_error(&e))?;
+    row.get::<_, String>(0)
+        .parse()
+        .map_err(|_| PgError::new("Could not read the server version"))
 }
 
 async fn backups_dir(app: &AppHandle) -> Result<PathBuf, PgError> {
@@ -805,6 +893,15 @@ async fn restore_backup(
 
     if mode == RestoreMode::Recreate {
         recreate_database(&connection, &on_log).await?;
+    }
+
+    let version = server_version_num(&connection).await?;
+    if version < TRANSACTION_TIMEOUT_MIN_VERSION {
+        let _ = on_log.send(format!(
+            "puffin: server version {} predates transaction_timeout, restoring through psql",
+            version
+        ));
+        return restore_through_psql(&connection, mode, &path, &on_log).await;
     }
 
     let mut cmd = pg_command("pg_restore", &connection);
@@ -910,6 +1007,18 @@ mod tests {
 
         let recreate: Vec<String> = tail.iter().map(|a| a.to_string()).collect();
         assert_eq!(restore_args(RestoreMode::Recreate, "app", "/x.dump"), recreate);
+    }
+
+    #[test]
+    fn script_restore_args_write_to_stdout() {
+        let args = script_restore_args(RestoreMode::Recreate, "/x.dump");
+        assert_eq!(args[args.len() - 3..], ["-f", "-", "/x.dump"]);
+        assert!(!args.contains(&"-d".to_string()));
+    }
+
+    #[test]
+    fn psql_args_stop_on_error() {
+        assert_eq!(psql_args("app"), ["-X", "-q", "-v", "ON_ERROR_STOP=1", "-d", "dbname='app'"]);
     }
 
     #[test]
