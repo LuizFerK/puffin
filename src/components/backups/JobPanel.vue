@@ -73,7 +73,18 @@ watch(
         whitespace-pre-wrap
         break-all
       >{{ job.log.join("\n") }}</pre>
-      <span v-else text-xs text-gray-600>Waiting for output...</span>
+      <span v-else-if="job.status === 'running'" text-xs text-gray-600>Waiting for output...</span>
+      <p
+        v-if="job.status === 'success' && job.successMessage"
+        m-0
+        font-mono
+        text-xs
+        leading-5
+        font-semibold
+        text-emerald-500
+      >
+        {{ job.successMessage }}
+      </p>
     </div>
   </div>
 </template>

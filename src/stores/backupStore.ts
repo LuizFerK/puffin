@@ -56,6 +56,7 @@ function logChannel(current: BackupJob) {
 async function runJob<T>(
   title: string,
   task: (channel: Channel<string>, startedAt: number) => Promise<T>,
+  successMessage: string | null = null,
 ): Promise<T | null> {
   if (isRunning.value) return null
   job.value = {
@@ -63,6 +64,7 @@ async function runJob<T>(
     status: "running",
     log: [],
     error: null,
+    successMessage,
     startedAt: Date.now(),
     finishedAt: null,
   }
@@ -110,13 +112,16 @@ const createBackup = (conn: Connection) =>
   })
 
 const restoreBackup = (backup: Backup, target: Connection, mode: RestoreMode) =>
-  runJob(`Restoring into ${connectionLabel(target)}`, (channel) =>
-    invoke("restore_backup", {
-      connection: toConnectionParams(target),
-      path: backup.path,
-      mode,
-      onLog: channel,
-    }),
+  runJob(
+    `Restoring into ${connectionLabel(target)}`,
+    (channel) =>
+      invoke("restore_backup", {
+        connection: toConnectionParams(target),
+        path: backup.path,
+        mode,
+        onLog: channel,
+      }),
+    "puffin: restore finished successfully",
   )
 
 async function deleteBackup(backup: Backup) {

@@ -128,6 +128,8 @@ export interface BackupJob {
   status: "running" | "success" | "error"
   log: string[]
   error: PgError | null
+  // Shown after the log on success, since the tool's last line rarely reads as the end of the run
+  successMessage: string | null
   startedAt: number
   finishedAt: number | null
 }
