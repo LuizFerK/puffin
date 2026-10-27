@@ -6,6 +6,7 @@ import FormInput from "../FormInput.vue"
 import ConnectionPicker from "./ConnectionPicker.vue"
 import SelectableCard from "./SelectableCard.vue"
 import { formatDateTime } from "../../helpers/dateHelpers"
+import { connectionLabel } from "../../helpers/connectionHelpers"
 import type { Connection, Backup, RestoreMode } from "../../types"
 
 const props = defineProps<{
@@ -49,10 +50,12 @@ const confirmText = ref("")
 const confirmInput = ref<InstanceType<typeof FormInput> | null>(null)
 
 const target = computed(() => props.connections.find((c) => c.id === targetId.value) ?? null)
+// The database name alone can mislead (a local db named *_dev), so the connection is typed instead
+const targetLabel = computed(() => (target.value ? connectionLabel(target.value) : ""))
 const isSource = computed(() => target.value?.id === props.backup?.connectionId)
 const isLastStep = computed(() => step.value === STEPS.length - 1)
 const canAdvance = computed(() => step.value !== 0 || target.value !== null)
-const canRestore = computed(() => target.value !== null && confirmText.value === target.value.database)
+const canRestore = computed(() => target.value !== null && confirmText.value === targetLabel.value)
 
 // Reaching the last step always starts from an empty confirmation
 watch(isLastStep, async (last) => {
@@ -158,8 +161,9 @@ function stepClass(i: number) {
             <span text-gray-500>· {{ formatDateTime(backup.createdAt) }}</span>
           </dd>
           <dt text-gray-500>Target</dt>
-          <dd m-0 text-gray-300 font-mono truncate>
-            {{ target.host }}:{{ target.port }}/{{ target.database }}
+          <dd m-0 text-gray-300 truncate>
+            {{ targetLabel }}
+            <span text-gray-500 font-mono>· {{ target.host }}:{{ target.port }}/{{ target.database }}</span>
           </dd>
           <dt text-gray-500>Mode</dt>
           <dd m-0 text-gray-300>{{ mode.label }}</dd>
@@ -171,6 +175,7 @@ function stepClass(i: number) {
             <span text-xs leading-5>
               This overwrites data in
               <span font-mono font-semibold>{{ target.database }}</span>
+              on <span font-semibold>{{ targetLabel }}</span>
               and cannot be undone.
             </span>
           </div>
@@ -185,7 +190,7 @@ function stepClass(i: number) {
           >
             <template #label>
               <span text-xs font-normal>
-                Type <span font-mono font-semibold text-gray-200>{{ target.database }}</span> to
+                Type <span font-mono font-semibold text-gray-200>{{ targetLabel }}</span> to
                 confirm
               </span>
             </template>
